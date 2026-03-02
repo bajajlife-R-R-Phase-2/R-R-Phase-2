@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureCentive - Bancassurance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <script src="js/mockData.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        App.renderLayout('banca');
+        App.setPageTitle('Bancassurance Channel');
+
+        // Filter Banca Data
+        const ics = App.getData('ic_platform_ics').filter(ic => ic.channel === 'Bancassurance');
+
+        let totalTarget = 0, totalNB = 0;
+        ics.forEach(ic => {
+            totalTarget += ic.goalsheet_target;
+            totalNB += ic.nb_premium;
+        });
+
+        const achievement = (totalNB / totalTarget) * 100;
+        const selfSourced = totalNB * 0.4;
+        const assistedSourced = totalNB * 0.6;
+
+        const pageHTML = `
+      <div class="grid-cards animate-slide-in">
+        <div class="metric-card">
+          <div class="metric-title">Banca Overachievement</div>
+          <div class="metric-value">${achievement.toFixed(1)}%</div>
+          <div class="metric-trend trend-up">
+            <div class="progress-bar-container">
+              <div class="progress-bar" style="width: ${achievement > 100 ? 100 : achievement}%; background-color: var(--primary)"></div>
+            </div>
+            <span style="margin-top: 8px; font-size: 0.75rem;">${App.formatCurrency(totalNB)} / ${App.formatCurrency(totalTarget)}</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Active Bank Partners</div>
+          <div class="metric-value">4 <span style="font-size: 1rem; color: var(--text-muted)">Banks</span></div>
+          <div class="metric-trend trend-up"><i class="fas fa-university"></i> HDFC, SBI, Axis, ICICI</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Banca Contest Payout</div>
+          <div class="metric-value">${App.formatCurrency(totalNB * 0.05)}</div>
+          <div class="metric-trend trend-down"><i class="fas fa-chart-bar"></i> Q2 Power Drive Scheme</div>
+        </div>
+      </div>
+
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s">
+        <!-- Self Sourcing vs Assisted Sourcing -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Sourcing Type (Volume)</h3>
+            <span class="status-badge status-info">Self-Sourcing Bonus: 2%</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="sourcingChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Circle Manager Performance Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Circle Head Performance Tracker</h3>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Circle Manager</th><th>Assigned Branch</th><th>Activation %</th><th>Trend</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Rajiv Menon</td>
+                <td>Mumbai South</td>
+                <td><div class="heat-cell heat-high">89%</div></td>
+                <td><i class="fas fa-arrow-up trend-up"></i></td>
+              </tr>
+              <tr>
+                <td>Pooja Mishra</td>
+                <td>Delhi NCR</td>
+                <td><div class="heat-cell heat-mid">72%</div></td>
+                <td><i class="fas fa-arrow-down trend-down"></i></td>
+              </tr>
+              <tr>
+                <td>Karan Gupta</td>
+                <td>Bangalore East</td>
+                <td><div class="heat-cell heat-low">45%</div></td>
+                <td><i class="fas fa-arrow-down trend-down"></i></td>
+              </tr>
+              <tr>
+                <td>Anil Reddy</td>
+                <td>Hyderabad Heights</td>
+                <td><div class="heat-cell heat-high">92%</div></td>
+                <td><i class="fas fa-arrow-up trend-up"></i></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+        App.setContent(pageHTML);
+
+        const sourcingCtx = document.getElementById('sourcingChart');
+        new Chart(sourcingCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Self-Sourcing', 'Bank Staff Assisted'],
+                datasets: [{
+                    data: [selfSourced, assistedSourced],
+                    backgroundColor: ['#f08a30', '#0f3f8c'],
+                    borderWidth: 0
+                }]
+            },
+            options: { maintainAspectRatio: false, cutout: '65%' }
+        });
+
+    </script>
+</body>
+
+</html>

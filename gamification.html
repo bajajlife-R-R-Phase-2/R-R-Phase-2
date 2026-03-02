@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureCentive - Gamification</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <script src="js/mockData.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        App.renderLayout('gamification');
+        App.setPageTitle('Clubs & Gamification');
+
+        const ics = App.getData('ic_platform_ics');
+
+        // Sort ICs for Leaderboard
+        const leaderboard = [...ics].sort((a, b) => b.nb_premium - a.nb_premium);
+
+        // Calculate Club Progression
+        const totals = { mdrt: 0, gold: 0, silver: 0, bronze: 0 };
+        ics.forEach(ic => {
+            if (ic.club_status === 'MDRT') totals.mdrt++;
+            if (ic.club_status === 'Gold') totals.gold++;
+            if (ic.club_status === 'Silver') totals.silver++;
+            if (ic.club_status === 'Bronze') totals.bronze++;
+        });
+
+        const pageHTML = `
+      <!-- Contest Banner & Countdown -->
+      <div class="panel animate-slide-in" style="background: linear-gradient(135deg, var(--primary), #3b82f6); color: white; border: none;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2 style="font-size:2rem; margin-bottom:10px;"><i class="fas fa-plane-departure"></i> Target Paris 2026 Convention Tracker</h2>
+            <p>You have unlocked 85% of your convention target based on cumulative RNB!</p>
+          </div>
+          <div style="text-align:center; background: rgba(0,0,0,0.2); padding: 15px 25px; border-radius:var(--radius-lg)">
+            <p style="text-transform:uppercase; letter-spacing:1px; font-size:0.8rem; margin-bottom:5px;">Contest Ends In</p>
+            <div style="font-size: 2rem; font-family: monospace; font-weight:bold" id="timer">42d 12h 05m</div>
+          </div>
+        </div>
+        <div class="progress-bar-container" style="height:12px; border-radius:10px; margin-top:20px; background: rgba(255,255,255,0.2)">
+          <div class="progress-bar" style="width: 85%; background-color: var(--warning); border-radius:10px;"></div>
+        </div>
+      </div>
+
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s">
+        <!-- Live Leaderboard -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-crown"></i> National Leaderboard (Top 5 ICs)</h3>
+            <select class="form-control" style="width:auto; height:30px; font-size:0.8rem; padding: 0 10px;">
+              <option>By Zone</option>
+              <option>By Channel</option>
+            </select>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Consultant</th>
+                <th>Achievement (NB)</th>
+                <th>Badge</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${leaderboard.slice(0, 5).map((ic, i) => {
+            let badgeHTML = '';
+            if (i === 0) badgeHTML = '<i class="fas fa-medal" style="color:#fbbf24; font-size:1.5rem"></i>'; // Gold
+            else if (i === 1) badgeHTML = '<i class="fas fa-medal" style="color:#94a3b8; font-size:1.5rem"></i>'; // Silver
+            else if (i === 2) badgeHTML = '<i class="fas fa-medal" style="color:#d97706; font-size:1.5rem"></i>'; // Bronze
+            else badgeHTML = `<b style="color:var(--text-muted)">#${i + 1}</b>`;
+
+            return `
+                <tr>
+                  <td style="text-align:center">${badgeHTML}</td>
+                  <td><strong>${ic.name}</strong><br/><small style="color:var(--primary)">${ic.branch_id}</small></td>
+                  <td style="font-weight:bold">${App.formatCurrency(ic.nb_premium)}</td>
+                  <td><span class="status-badge" style="background:var(--accent); color:white">${ic.club_status}</span></td>
+                </tr>
+              `}).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Clubs and Streaks -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-fire"></i> Streak Tracker & Power Rewards</h3>
+          </div>
+          
+          <div style="display:flex; gap:10px; margin-bottom: 25px;">
+            ${[...Array(6)].map((_, i) => `
+              <div style="flex:1; text-align:center; padding:10px; border-radius:4px; ${i < 4 ? 'background:var(--success-bg); color:var(--success)' : 'background:var(--bg-app); color:var(--text-muted)'}">
+                <i class="fas ${i < 4 ? 'fa-check-circle' : 'fa-circle-notch'}"></i>
+                <div style="font-size:0.75rem; margin-top:5px; font-weight:bold">M${i + 1}</div>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="alert-box alert-warning">
+            <i class="fas fa-bolt alert-icon"></i>
+            <div>Hit target in M5 and M6 to unlock <strong>2% Super Streak Bonus</strong> on entire Half-Yearly Premium.</div>
+          </div>
+
+          <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+          <!-- Club Dashboard -->
+          <h4 style="margin-bottom: 15px; font-weight:600">Company Club Tier Qualification</h4>
+          <div style="display:flex; justify-content:space-between; text-align:center">
+             <div><div style="font-size:2rem; font-weight:bold; color:var(--primary)">${totals.mdrt}</div><span style="font-size:0.8rem; color:var(--text-muted)">MDRT</span></div>
+             <div><div style="font-size:2rem; font-weight:bold; color:#fbbf24">${totals.gold}</div><span style="font-size:0.8rem; color:var(--text-muted)">Gold</span></div>
+             <div><div style="font-size:2rem; font-weight:bold; color:#94a3b8">${totals.silver}</div><span style="font-size:0.8rem; color:var(--text-muted)">Silver</span></div>
+             <div><div style="font-size:2rem; font-weight:bold; color:#d97706">${totals.bronze}</div><span style="font-size:0.8rem; color:var(--text-muted)">Bronze</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+        App.setContent(pageHTML);
+
+        // Mock Countdown Timer Script
+        setInterval(() => {
+            const el = document.getElementById('timer');
+            if (el) {
+                let parts = el.innerText.split(' ');
+                let m = parseInt(parts[2]);
+                m = (m - 1) < 0 ? 59 : m - 1;
+                el.innerText = `42d 12h ${m.toString().padStart(2, '0')}m`;
+            }
+        }, 60000); // Ticks every minute visually
+
+    </script>
+</body>
+
+</html>

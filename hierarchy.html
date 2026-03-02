@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureCentive - Hierarchy Management</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <script src="js/mockData.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        App.renderLayout('hierarchy');
+        App.setPageTitle('Hierarchy Interface');
+
+        const sms = App.getData('ic_platform_sms');
+        const ics = App.getData('ic_platform_ics');
+
+        // Group ICs by SM purely for UI rendering limits
+        const displaySMs = sms.slice(0, 4);
+
+        const pageHTML = `
+      <div class="grid-2 animate-slide-in">
+        
+        <!-- Org Chart Tree -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-sitemap"></i> Expandable Org Chart (West Zone)</h3>
+            <button class="btn btn-outline btn-sm"><i class="fas fa-upload"></i> Bulk Upload Simulation</button>
+          </div>
+          <div style="font-family: monospace; font-size: 0.9rem; line-height: 1.8;">
+            <div style="font-weight: bold; color: var(--primary)">💼 Ashok Desai (Zone Head - West)</div>
+            <div style="margin-left: 20px;">
+              <div style="font-weight: bold; color: var(--accent);">🏢 Mumbai South (Branch)</div>
+              ${displaySMs.map(sm => {
+            const myIcs = ics.filter(ic => ic.sm_id === sm.id).slice(0, 2);
+            return `
+                  <div style="margin-left: 20px; border-left: 1px dashed var(--border); padding-left: 10px;">
+                    <div style="cursor: pointer;">👨‍💼 ${sm.name} [${sm.id}] - <span style="color:var(--text-muted)">SM Level</span></div>
+                    <div style="margin-left: 20px; border-left: 1px dashed var(--border); padding-left: 10px; color: var(--text-muted);">
+                      ${myIcs.map(ic => `<div>👤 ${ic.name} [${ic.id}] - IC (Ach: ${App.formatCurrency(ic.nb_premium)})</div>`).join('')}
+                      <div><i class="fas fa-plus-circle" style="color:var(--primary); cursor:pointer;"></i> Show More...</div>
+                    </div>
+                  </div>
+                `;
+        }).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Transfer / Impact Simulation -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-exchange-alt"></i> IC Transfer Simulation</h3>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Select Source IC</label>
+            <select class="form-control" id="sim-ic">
+              ${ics.slice(0, 5).map(ic => `<option value="${ic.id}">${ic.name} (${ic.id}) - Current SM: ${ic.sm_id}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Destination SM</label>
+            <select class="form-control" id="sim-sm">
+              <option>SM005 - Vikas Reddy (Delhi Base)</option>
+              <option>SM012 - Sneha Iyer (Mumbai South)</option>
+            </select>
+          </div>
+          
+          <button class="btn btn-primary" onclick="showImpact()" style="width: 100%; margin-bottom: 20px;">Simulate Impact on SM Overrides</button>
+
+          <div id="impact-panel" style="display:none;" class="alert-box alert-warning">
+            <i class="fas fa-project-diagram alert-icon"></i>
+            <div>
+              <strong>If Hierarchy Changes → Payout Impact:</strong> 
+              Transferring this IC will shift <span style="color:var(--danger)">₹4,500</span> in L1 SM Overrides from the Source SM to the Destination SM for the upcoming payout cycle. 
+              Destination SM also unlocks <i>"Super Team"</i> power reward criteria.
+            </div>
+          </div>
+
+          <!-- Promotion Simulation -->
+          <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+          <div class="panel-header">
+            <h3 class="panel-title"><i class="fas fa-level-up-alt"></i> IC to SM Promotion Simulation</h3>
+          </div>
+          <button class="btn btn-outline" style="width: 100%;" onclick="alert('L2 Override mappings will be recalibrated.')">Simulate Promotion</button>
+        </div>
+
+      </div>
+    `;
+
+        App.setContent(pageHTML);
+
+        window.showImpact = function () {
+            document.getElementById('impact-panel').style.display = 'flex';
+        };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureCentive - Notifications Engine</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <script src="js/mockData.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        App.renderLayout('notifications');
+        App.setPageTitle('Nudge & Notification Engine');
+
+        const ics = App.getData('ic_platform_ics');
+
+        // Generate simulated notification list
+        const alerts = [];
+        ics.forEach(ic => {
+            // 1. Target Reminder Nudges (>90%)
+            const ach = ic.nb_premium / ic.goalsheet_target;
+            if (ach > 0.9 && ach < 1.0) {
+                alerts.push({ ic: ic.name, id: ic.id, type: 'Target Nudge', metric: ach * 100, msg: `You are ${(1 - ach) * 100}% away from unlocking your Q3 Goalsheet! Finish strong.`, priority: 'info', icon: 'fa-bullseye' });
+            }
+            // 2. Persistency Watch
+            if (ic.persistency < 75) {
+                alerts.push({ ic: ic.name, id: ic.id, type: 'Persistency Warning', metric: ic.persistency, msg: `Your 13M Persistency has dropped to ${ic.persistency}%. You risk a 50% commission clawback.`, priority: 'danger', icon: 'fa-exclamation-circle' });
+            }
+            // 3. Club Unlocked
+            if (ic.nb_premium > 2500000 && ic.club_status === 'Gold') {
+                alerts.push({ ic: ic.name, id: ic.id, type: 'Club Unlock', metric: 100, msg: `Congratulations! You have unlocked GOLD Club status for FY26.`, priority: 'success', icon: 'fa-trophy' });
+            }
+        });
+
+        // Sort to bring warnings & recent unlocks up
+        const sortedAlerts = alerts.sort(() => .5 - Math.random()).slice(0, 15);
+
+        const pageHTML = `
+      <div class="grid-cards animate-slide-in">
+        <div class="metric-card">
+          <div class="metric-title">Nudges Sent (MTD)</div>
+          <div class="metric-value">4,520</div>
+          <div class="metric-trend trend-info"><i class="fas fa-paper-plane"></i> Automated via Rules Engine</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Platform Engagement %</div>
+          <div class="metric-value">72%</div>
+          <div class="metric-trend trend-up"><i class="fas fa-eye"></i> Click-through rate</div>
+        </div>
+        <div class="metric-card" style="grid-column: span 2;">
+          <div class="metric-title">Global Alert Channels</div>
+          <div style="display:flex; justify-content: space-around; margin-top: 10px;">
+            <label><input type="checkbox" checked> <i class="fab fa-whatsapp" style="color:#25D366"></i> WhatsApp</label>
+            <label><input type="checkbox" checked> <i class="fas fa-sms" style="color:#3b82f6"></i> SMS</label>
+            <label><input type="checkbox"> <i class="fas fa-envelope" style="color:#f59e0b"></i> Email</label>
+            <label><input type="checkbox" checked> <i class="fas fa-mobile-alt" style="color:#0f3f8c"></i> In-App</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel animate-slide-in" style="animation-delay: 0.1s">
+        <div class="panel-header">
+          <h3 class="panel-title">Simulated Alert Dispatch Log (Last 24 Hrs)</h3>
+          <button class="btn btn-outline btn-sm"><i class="fas fa-sync-alt"></i> Run Rules Engine</button>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Notification Type</th>
+                <th>Message Content</th>
+                <th>Delivery Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedAlerts.map(a => `
+                <tr>
+                  <td><strong>${a.ic}</strong><br><small style="color:var(--text-muted)">${a.id}</small></td>
+                  <td><span class="status-badge status-${a.priority}"><i class="fas ${a.icon}"></i> ${a.type}</span></td>
+                  <td>${a.msg}</td>
+                  <td><i class="fas fa-check-double" style="color:#3b82f6"></i> Delivered</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+        App.setContent(pageHTML);
+    </script>
+</body>
+
+</html>

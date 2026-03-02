@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureCentive - Invoicing Module</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <script src="js/mockData.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        App.renderLayout('invoicing');
+        App.setPageTitle('Invoicing & Reconciliation');
+
+        const ics = App.getData('ic_platform_ics');
+        const aggregate = App.getData('ic_platform_aggregate');
+
+        // Generate Invoice Data
+        const invoices = ics.map(ic => {
+            const g_nb = ic.nb_premium * 0.15;
+            const g_ren = ic.renewal_premium * 0.05;
+            const contest = ic.QSB_achieved ? 50000 : 0;
+            const gross = g_nb + g_ren + contest;
+
+            let clawback = 0;
+            if (ic.persistency < 75) clawback = g_nb * 0.5; // 50% NB clawback
+
+            const taxable = gross - clawback;
+            const tds = taxable * 0.10; // 10% TDS
+            const pt = 200; // standard PT
+
+            const net = taxable - tds - pt;
+
+            const statuses = ['Approved', 'Submitted to Bank', 'Paid', 'Reversed'];
+            // Mock status logic
+            let status = 'Paid';
+            if (Math.random() > 0.8) status = 'Submitted to Bank';
+            if (Math.random() > 0.9) status = 'Approved';
+            if (ic.id === 'IC0005' || ic.id === 'IC0042') status = 'Reversed';
+
+            return {
+                id: `INV-${ic.id}-26M3`,
+                ic: ic.name,
+                code: ic.id,
+                t1: 'PRD-ULIP',
+                t2: ic.branch_id,
+                t3: ic.channel.substring(0, 3).toUpperCase(),
+                gross: gross,
+                nb: g_nb,
+                ren: g_ren,
+                contest: contest,
+                clawback: clawback,
+                tds: tds,
+                pt: pt,
+                net: net,
+                status: status,
+                reconciled: Math.random() > 0.1
+            };
+        });
+
+        const pageHTML = `
+      <div class="grid-cards animate-slide-in">
+        <div class="metric-card">
+          <div class="metric-title">Gross Liability (Month)</div>
+          <div class="metric-value">${App.formatCurrency(aggregate.totalLiability)}</div>
+          <div class="metric-trend trend-info"><i class="fas fa-file-invoice"></i> Pending Final Approval</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">TDS Withheld (10%)</div>
+          <div class="metric-value" style="color:var(--danger)">${App.formatCurrency(aggregate.tdsDeducted)}</div>
+          <div class="metric-trend trend-down"><i class="fas fa-university"></i> Payable to Dept.</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Net Payable to IC/SMs</div>
+          <div class="metric-value" style="color:var(--success)">
+            ${App.formatCurrency(aggregate.totalLiability - aggregate.tdsDeducted - aggregate.ptDeducted)}
+          </div>
+          <div class="metric-trend trend-up"><i class="fas fa-wallet"></i> Adjusted for PT & TDS</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Reconciliation Issues</div>
+          <div class="metric-value">${invoices.filter(i => !i.reconciled).length} 
+            <span style="font-size:1rem; color:var(--text-muted)">Invoices</span>
+          </div>
+          <button class="btn btn-outline btn-sm" style="margin-top:10px; width:100%" onclick="alert('Exporting Rejections...')">Export Errors</button>
+        </div>
+      </div>
+
+      <div class="panel animate-slide-in" style="animation-delay: 0.1s">
+        <div class="panel-header">
+          <h3 class="panel-title">Provisional Payout Register (Pre-Disbursement)</h3>
+          <div>
+            <button class="btn btn-primary" onclick="alert('Pushing to Core Banking System...')"><i class="fas fa-upload"></i> Push to Banking</button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table" style="font-size: 0.85rem">
+            <thead>
+              <tr>
+                <th>Invoice Ref</th>
+                <th>Agent Info</th>
+                <th>Tags (T1/T2/T3)</th>
+                <th>Commissions (NB / Ren / Contest)</th>
+                <th>Clawback / Penalty</th>
+                <th>Deductions (TDS & PT)</th>
+                <th>Net Payable</th>
+                <th>Status Lifecycle</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoices.slice(0, 15).map(inv => {
+            let badge = 'status-success';
+            let icon = 'fa-check';
+            if (inv.status === 'Approved') { badge = 'status-warning'; icon = 'fa-clock'; }
+            if (inv.status === 'Submitted to Bank') { badge = 'status-info'; icon = 'fa-university'; }
+            if (inv.status === 'Reversed') { badge = 'status-danger'; icon = 'fa-undo'; }
+
+            const reconFlag = !inv.reconciled ? '<i class="fas fa-exclamation-triangle" style="color:var(--danger)" title="Reconciliation Mismatch"></i>' : '';
+
+            return `
+                <tr style="${!inv.reconciled ? 'background-color: var(--danger-bg)' : ''}">
+                  <td><strong>${inv.id}</strong> <br/> ${reconFlag}</td>
+                  <td>${inv.ic} <br><span style="color:var(--text-muted)">${inv.code}</span></td>
+                  <td><span class="status-badge" style="background:#e2e8f0">${inv.t1}</span><br>${inv.t2} / ${inv.t3}</td>
+                  <td>
+                    NB: ${App.formatCurrency(inv.nb)}<br>
+                    Ren: ${App.formatCurrency(inv.ren)}<br>
+                    C: ${App.formatCurrency(inv.contest)}
+                  </td>
+                  <td style="color:var(--danger)">
+                    ${inv.clawback > 0 ? '-' + App.formatCurrency(inv.clawback) : '0'}
+                  </td>
+                  <td style="color:var(--text-muted)">
+                    T: ${App.formatCurrency(inv.tds)}<br>
+                    P: ${App.formatCurrency(inv.pt)}
+                  </td>
+                  <td style="font-weight:bold; color:var(--success)">${App.formatCurrency(inv.net)}</td>
+                  <td><span class="status-badge ${badge}"><i class="fas ${icon}"></i> ${inv.status}</span></td>
+                </tr>
+              `}).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+        App.setContent(pageHTML);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsureCentive - Executive Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  
+  <script src="js/mockData.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // 1. Render Basic Layout
+    App.renderLayout('executive');
+    App.setPageTitle('Executive Overview');
+
+    // 2. Load Aggregated Data
+    const agg = App.getData('ic_platform_aggregate');
+    
+    // 3. Define Page Content
+    const pageHTML = `
+      <!-- AI Insight Alert -->
+      <div class="alert-box alert-warning animate-slide-in">
+        <i class="fas fa-exclamation-triangle alert-icon"></i>
+        <div>
+          <strong>AI Insight:</strong> Persistency drop of 2.4% in the North Zone may reduce overall payout by ${App.formatCurrency(agg.totalLiability * 0.02)} next cycle. Consider immediate Nudge campaign.
+        </div>
+      </div>
+
+      <!-- Top KPI Metric Cards -->
+      <div class="grid-cards animate-slide-in" style="animation-delay: 0.1s">
+        <div class="metric-card">
+          <div class="metric-title">Total Incentive Liability</div>
+          <div class="metric-value">${App.formatCurrency(agg.totalLiability)}</div>
+          <div class="metric-trend trend-up"><i class="fas fa-arrow-up"></i> 12% vs last quarter</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Accrued vs Paid</div>
+          <div class="metric-value">${App.formatCurrency(agg.paidLiability)}</div>
+          <div class="metric-trend trend-up" style="color: var(--text-muted)">
+            <div class="progress-bar-container">
+              <div class="progress-bar" style="width: 75%; background-color: var(--success)"></div>
+            </div>
+            <span style="margin-top: 8px; font-size: 0.75rem;">75% Disbursed</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Contest Participation</div>
+          <div class="metric-value">68%</div>
+          <div class="metric-trend trend-up"><i class="fas fa-arrow-up"></i> ↑ 5% from Q3</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Total Tax & Compliance Deductions</div>
+          <div class="metric-value">${App.formatCurrency(agg.tdsDeducted + agg.ptDeducted)}</div>
+          <div class="metric-trend trend-down"><i class="fas fa-info-circle"></i> 10% TDS + Standard PT applied</div>
+        </div>
+      </div>
+
+      <!-- Main Charts Grid -->
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.2s">
+        <!-- NB vs Renewal -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">NB vs Renewal Premium Contribution</h3>
+            <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
+          </div>
+          <div class="chart-container">
+            <canvas id="ratioChart"></canvas>
+          </div>
+        </div>
+        
+        <!-- Payout Trend -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Monthly Payout Trend (Simulated YoY)</h3>
+          </div>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Grid -->
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.3s">
+        <!-- Persistency Table Grid / Heatmap -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">13M Persistency Heatmap (By Zone)</h3>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Zone</th>
+                <th>13M Average</th>
+                <th>Impact</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>West</td>
+                <td><div class="heat-cell heat-high">88%</div></td>
+                <td><span class="status-badge status-success">Optimal</span></td>
+                <td>20% Bonus applied</td>
+              </tr>
+              <tr>
+                <td>South</td>
+                <td><div class="heat-cell heat-mid">78%</div></td>
+                <td><span class="status-badge status-warning">Moderate</span></td>
+                <td>Standard Payout</td>
+              </tr>
+              <tr>
+                <td>North</td>
+                <td><div class="heat-cell heat-low">68%</div></td>
+                <td><span class="status-badge status-danger">Critical</span></td>
+                <td>Penalty: 50% NB Cut</td>
+              </tr>
+              <tr>
+                <td>East</td>
+                <td><div class="heat-cell heat-high">82%</div></td>
+                <td><span class="status-badge status-success">Optimal</span></td>
+                <td>Standard Payout</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Channel Wise Payout Split -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Channel-wise Liability Split</h3>
+            <button class="btn btn-outline btn-sm" onclick="showBudgetDrilldown()">Drill Down</button>
+          </div>
+          <div class="chart-container">
+            <canvas id="channelChart"></canvas>
+          </div>
+        </div>
+      </div>
+    `;
+
+    App.setContent(pageHTML);
+
+    // 4. Initialize Charts
+    const ratioCtx = document.getElementById('ratioChart');
+    new Chart(ratioCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['New Business (NB)', 'Renewal Business'],
+        datasets: [{
+          data: [agg.nbComponent, agg.renewalComponent],
+          backgroundColor: ['#0f3f8c', '#10b981'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        cutout: '70%'
+      }
+    });
+
+    const trendCtx = document.getElementById('trendChart');
+    new Chart(trendCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: '2025 Payout Array',
+          data: [1200000, 1900000, 3000000, 1500000, 1400000, parseFloat(agg.totalLiability.toFixed(0))],
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            grid: { color: '#e2e8f0', borderDash: [5, 5] },
+            ticks: {
+              callback: function(value) { return '₹' + (value/100000) + 'L'; }
+            }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+
+    const channelCtx = document.getElementById('channelChart');
+    new Chart(channelCtx, {
+      type: 'pie',
+      data: {
+        labels: ['Agency Channel', 'Bancassurance', 'Direct/In-House'],
+        datasets: [{
+          data: [65, 25, 10], // Mock Split %
+          backgroundColor: ['#f08a30', '#205bc7', '#a5b4fc'],
+          borderWidth: 0
+        }]
+      },
+      options: { maintainAspectRatio: false }
+    });
+
+    // Handle Drill Down Modal
+    window.showBudgetDrilldown = function() {
+      const modalBody = `
+        <table class="data-table">
+          <tr><th>Channel</th><th>Total Budget Allocation</th><th>Utilized</th></tr>
+          <tr><td>Agency</td><td>₹ 15 Cr</td><td>₹ 12.5 Cr <span style="color:var(--danger)">🔥</span></td></tr>
+          <tr><td>Banca</td><td>₹ 5 Cr</td><td>₹ 2 Cr</td></tr>
+          <tr><td>Direct</td><td>₹ 2 Cr</td><td>₹ 0.5 Cr</td></tr>
+        </table>
+      `;
+      App.openModal("Budget Utilization Drill-down", modalBody);
+    };
+
+  </script>
+</body>
+</html>
