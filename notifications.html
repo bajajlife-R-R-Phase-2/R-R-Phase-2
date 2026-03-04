@@ -2,78 +2,150 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InsureCentive - Notifications Engine</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsureCentive - Notifications Engine</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
 
-    <script src="js/mockData.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        App.renderLayout('notifications');
-        App.setPageTitle('Nudge & Notification Engine');
+  <script src="js/mockData.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.renderLayout('notifications');
+    App.setPageTitle('Nudge & Notification Engine');
 
-        const ics = App.getData('ic_platform_ics');
+    const ics = App.getData('ic_platform_ics');
 
-        // Generate simulated notification list
-        const alerts = [];
-        ics.forEach(ic => {
-            // 1. Target Reminder Nudges (>90%)
-            const ach = ic.nb_premium / ic.goalsheet_target;
-            if (ach > 0.9 && ach < 1.0) {
-                alerts.push({ ic: ic.name, id: ic.id, type: 'Target Nudge', metric: ach * 100, msg: `You are ${(1 - ach) * 100}% away from unlocking your Q3 Goalsheet! Finish strong.`, priority: 'info', icon: 'fa-bullseye' });
-            }
-            // 2. Persistency Watch
-            if (ic.persistency < 75) {
-                alerts.push({ ic: ic.name, id: ic.id, type: 'Persistency Warning', metric: ic.persistency, msg: `Your 13M Persistency has dropped to ${ic.persistency}%. You risk a 50% commission clawback.`, priority: 'danger', icon: 'fa-exclamation-circle' });
-            }
-            // 3. Club Unlocked
-            if (ic.nb_premium > 2500000 && ic.club_status === 'Gold') {
-                alerts.push({ ic: ic.name, id: ic.id, type: 'Club Unlock', metric: 100, msg: `Congratulations! You have unlocked GOLD Club status for FY26.`, priority: 'success', icon: 'fa-trophy' });
-            }
-        });
+    // Generate simulated notification list
+    const alerts = [];
+    ics.forEach(ic => {
+      // 1. Target Reminder Nudges (>90%)
+      const ach = ic.nb_premium / ic.goalsheet_target;
 
-        // Sort to bring warnings & recent unlocks up
-        const sortedAlerts = alerts.sort(() => .5 - Math.random()).slice(0, 15);
+      // Smart Nudging: Motivational & Gap
+      if (ach > 0.85 && ach < 1.0) {
+        alerts.push({ ic: ic.name, id: ic.id, type: 'Smart Nudge', metric: (ach * 100).toFixed(1), msg: `Behavioral Trigger: You are ${((1 - ach) * 100).toFixed(1)}% away from unlocking your Q3 Goalsheet! Finish strong to secure your bonus.`, priority: 'info', icon: 'fa-brain' });
+      }
 
-        const pageHTML = `
-      <div class="grid-cards animate-slide-in">
-        <div class="metric-card">
-          <div class="metric-title">Nudges Sent (MTD)</div>
-          <div class="metric-value">4,520</div>
-          <div class="metric-trend trend-info"><i class="fas fa-paper-plane"></i> Automated via Rules Engine</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Platform Engagement %</div>
-          <div class="metric-value">72%</div>
-          <div class="metric-trend trend-up"><i class="fas fa-eye"></i> Click-through rate</div>
-        </div>
-        <div class="metric-card" style="grid-column: span 2;">
-          <div class="metric-title">Global Alert Channels</div>
-          <div style="display:flex; justify-content: space-around; margin-top: 10px;">
-            <label><input type="checkbox" checked> <i class="fab fa-whatsapp" style="color:#25D366"></i> WhatsApp</label>
-            <label><input type="checkbox" checked> <i class="fas fa-sms" style="color:#3b82f6"></i> SMS</label>
-            <label><input type="checkbox"> <i class="fas fa-envelope" style="color:#f59e0b"></i> Email</label>
-            <label><input type="checkbox" checked> <i class="fas fa-mobile-alt" style="color:#0f3f8c"></i> In-App</label>
-          </div>
-        </div>
+      // Event-Based: Performance Drop / Persistency Watch
+      if (ic.persistency < 75) {
+        alerts.push({ ic: ic.name, id: ic.id, type: 'Performance Drop Alert', metric: ic.persistency, msg: `Automated Alert: Your 13M Persistency has dropped to ${ic.persistency}%. You risk a 50% commission clawback. Immediate action required.`, priority: 'danger', icon: 'fa-exclamation-triangle' });
+      }
+      // Event-Based: Achievement Unlock
+      if (ic.nb_premium > 2500000 && ic.club_status === 'Gold') {
+        alerts.push({ ic: ic.name, id: ic.id, type: 'Achievement Unlock', metric: 100, msg: `Event Trigger: Congratulations! You have unlocked GOLD Club status for FY26.`, priority: 'success', icon: 'fa-trophy' });
+      }
+
+      // Event-Based: Budget Threshold (Simulated System Alert)
+      if (Math.random() > 0.98) {
+        alerts.push({ ic: 'SYSTEM', id: 'SYS-ADMIN', type: 'Budget Alert', metric: '--', msg: `Zone West Region 2 has consumed 85% of allocated R&R budget for Q2.`, priority: 'warning', icon: 'fa-wallet' })
+      }
+    });
+
+    // Sort to bring warnings & recent unlocks up
+    const sortedAlerts = alerts.sort(() => .5 - Math.random()).slice(0, 15);
+
+    const pageHTML = `
+      <!-- NOTIFICATION ANALYTICS -->
+      <div class="panel animate-slide-in" style="margin-bottom: 20px;">
+         <div class="panel-header" style="margin-bottom: 5px;">
+           <h3 class="panel-title"><i class="fas fa-chart-pie"></i> Notification Analytics</h3>
+         </div>
+         <div class="grid-4">
+            <div class="metric-card">
+              <div class="metric-title">Nudges Sent (MTD)</div>
+              <div class="metric-value">4,520</div>
+              <div class="metric-trend trend-info"><i class="fas fa-paper-plane"></i> Automated via Rules Engine</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Open Rate</div>
+              <div class="metric-value">68%</div>
+              <div class="metric-trend trend-up"><i class="fas fa-envelope-open"></i> +2.4% vs Last Month</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Platform Engagement</div>
+              <div class="metric-value">42%</div>
+              <div class="metric-trend trend-up"><i class="fas fa-hand-pointer"></i> Click-through rate</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Nudge Effectiveness</div>
+              <div class="metric-value">31%</div>
+              <div class="metric-trend trend-success"><i class="fas fa-chart-line"></i> Agents improved performance post-nudge</div>
+            </div>
+         </div>
       </div>
 
-      <div class="panel animate-slide-in" style="animation-delay: 0.1s">
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s; grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
+        
+        <!-- SMART NUDGING ENGINE CONFIG -->
+        <div class="panel">
+           <div class="panel-header">
+             <h3 class="panel-title"><i class="fas fa-brain" style="color:var(--primary)"></i> 1. Smart Nudging Engine</h3>
+             <span class="status-badge status-success">Active</span>
+           </div>
+           
+           <div style="margin-bottom: 15px;">
+              <h4 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-dark);">Active Campaigns</h4>
+              <div style="background: var(--bg-app); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.85rem; border-left: 3px solid var(--info)">
+                 <strong><i class="fas fa-comment-dots"></i> Personalized Motivational Messages</strong>
+                 <p style="margin-top:4px; color: var(--text-muted)">Uses NLP to tailor tone based on agent tenure and past responsiveness.</p>
+              </div>
+              <div style="background: var(--bg-app); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.85rem; border-left: 3px solid var(--warning)">
+                 <strong><i class="fas fa-bullseye"></i> Performance Gap Nudges</strong>
+                 <p style="margin-top:4px; color: var(--text-muted)">Triggers when agent is within 10% of next commission slab or club qualifier.</p>
+              </div>
+              <div style="background: var(--bg-app); padding: 10px; border-radius: 6px; font-size: 0.85rem; border-left: 3px solid var(--primary)">
+                 <strong><i class="fas fa-bolt"></i> Behavioral Triggers</strong>
+                 <p style="margin-top:4px; color: var(--text-muted)">Automatically nudges inactive agents (0 login days > 14 days) with micro-incentives.</p>
+              </div>
+           </div>
+        </div>
+
+        <!-- EVENT-BASED AUTOMATION CONFIG -->
+        <div class="panel">
+           <div class="panel-header">
+             <h3 class="panel-title"><i class="fas fa-cogs" style="color:var(--secondary)"></i> 2. Event-Based Automation</h3>
+             <span class="status-badge status-success">Active</span>
+           </div>
+
+           <div style="margin-bottom: 15px;">
+              <h4 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-dark);">Global Alert Policies</h4>
+              <table class="data-table" style="font-size: 0.85rem;">
+                 <tbody>
+                    <tr>
+                       <td><i class="fas fa-trophy" style="color:var(--success)"></i> Achievement Unlocks</td>
+                       <td><input type="checkbox" checked disabled> WhatsApp <input type="checkbox" checked disabled> In-App</td>
+                    </tr>
+                    <tr>
+                       <td><i class="fas fa-wallet" style="color:var(--warning)"></i> Budget Thresholds (80%+)</td>
+                       <td><input type="checkbox" checked disabled> Email (To: Admins)</td>
+                    </tr>
+                    <tr>
+                       <td><i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i> Performance/Persistency Drop</td>
+                       <td><input type="checkbox" checked disabled> SMS <input type="checkbox" checked disabled> Mgr Escalation</td>
+                    </tr>
+                 </tbody>
+              </table>
+           </div>
+        </div>
+
+      </div>
+
+      <!-- DISPATCH LOG -->
+      <div class="panel animate-slide-in" style="animation-delay: 0.2s">
         <div class="panel-header">
-          <h3 class="panel-title">Simulated Alert Dispatch Log (Last 24 Hrs)</h3>
-          <button class="btn btn-outline btn-sm"><i class="fas fa-sync-alt"></i> Run Rules Engine</button>
+          <h3 class="panel-title"><i class="fas fa-list"></i> Simulated Alert Dispatch Log (Last 24 Hrs)</h3>
+          <button class="btn btn-outline btn-sm" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Run Engine Now</button>
         </div>
         
         <div class="table-responsive">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Agent</th>
+                <th>Recipient</th>
                 <th>Notification Type</th>
                 <th>Message Content</th>
                 <th>Delivery Status</th>
@@ -83,8 +155,8 @@
               ${sortedAlerts.map(a => `
                 <tr>
                   <td><strong>${a.ic}</strong><br><small style="color:var(--text-muted)">${a.id}</small></td>
-                  <td><span class="status-badge status-${a.priority}"><i class="fas ${a.icon}"></i> ${a.type}</span></td>
-                  <td>${a.msg}</td>
+                  <td><span class="status-badge status-${a.priority}" style="white-space:nowrap;"><i class="fas ${a.icon}"></i> ${a.type}</span></td>
+                  <td style="max-width: 400px; white-space: normal;">${a.msg}</td>
                   <td><i class="fas fa-check-double" style="color:#3b82f6"></i> Delivered</td>
                 </tr>
               `).join('')}
@@ -94,8 +166,8 @@
       </div>
     `;
 
-        App.setContent(pageHTML);
-    </script>
+    App.setContent(pageHTML);
+  </script>
 </body>
 
 </html>

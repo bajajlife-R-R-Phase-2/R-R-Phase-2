@@ -2,92 +2,129 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InsureCentive - Invoicing Module</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>InsureCentive - Invoicing Module</title>
+   <link rel="stylesheet" href="css/style.css">
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
 
-    <script src="js/mockData.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        App.renderLayout('invoicing');
-        App.setPageTitle('Invoicing & Reconciliation');
+   <script src="js/mockData.js"></script>
+   <script src="js/app.js"></script>
+   <script>
+      App.renderLayout('invoicing');
+      App.setPageTitle('Invoicing & Reconciliation');
 
-        const ics = App.getData('ic_platform_ics');
-        const aggregate = App.getData('ic_platform_aggregate');
+      const ics = App.getData('ic_platform_ics');
+      const aggregate = App.getData('ic_platform_aggregate');
 
-        // Generate Invoice Data
-        const invoices = ics.map(ic => {
-            const g_nb = ic.nb_premium * 0.15;
-            const g_ren = ic.renewal_premium * 0.05;
-            const contest = ic.QSB_achieved ? 50000 : 0;
-            const gross = g_nb + g_ren + contest;
+      // Generate Invoice Data
+      const invoices = ics.map(ic => {
+         const g_nb = ic.nb_premium * 0.15;
+         const g_ren = ic.renewal_premium * 0.05;
+         const contest = ic.QSB_achieved ? 50000 : 0;
+         const gross = g_nb + g_ren + contest;
 
-            let clawback = 0;
-            if (ic.persistency < 75) clawback = g_nb * 0.5; // 50% NB clawback
+         let clawback = 0;
+         if (ic.persistency < 75) clawback = g_nb * 0.5; // 50% NB clawback
 
-            const taxable = gross - clawback;
-            const tds = taxable * 0.10; // 10% TDS
-            const pt = 200; // standard PT
+         const taxable = gross - clawback;
+         const tds = taxable * 0.10; // 10% TDS
+         const pt = 200; // standard PT
 
-            const net = taxable - tds - pt;
+         const net = taxable - tds - pt;
 
-            const statuses = ['Approved', 'Submitted to Bank', 'Paid', 'Reversed'];
-            // Mock status logic
-            let status = 'Paid';
-            if (Math.random() > 0.8) status = 'Submitted to Bank';
-            if (Math.random() > 0.9) status = 'Approved';
-            if (ic.id === 'IC0005' || ic.id === 'IC0042') status = 'Reversed';
+         const statuses = ['Approved', 'Submitted to Bank', 'Paid', 'Reversed'];
+         // Mock status logic
+         let status = 'Paid';
+         if (Math.random() > 0.8) status = 'Submitted to Bank';
+         if (Math.random() > 0.9) status = 'Approved';
+         if (ic.id === 'IC0005' || ic.id === 'IC0042') status = 'Reversed';
 
-            return {
-                id: `INV-${ic.id}-26M3`,
-                ic: ic.name,
-                code: ic.id,
-                t1: 'PRD-ULIP',
-                t2: ic.branch_id,
-                t3: ic.channel.substring(0, 3).toUpperCase(),
-                gross: gross,
-                nb: g_nb,
-                ren: g_ren,
-                contest: contest,
-                clawback: clawback,
-                tds: tds,
-                pt: pt,
-                net: net,
-                status: status,
-                reconciled: Math.random() > 0.1
-            };
-        });
+         return {
+            id: `INV-${ic.id}-26M3`,
+            ic: ic.name,
+            code: ic.id,
+            t1: 'PRD-ULIP',
+            t2: ic.branch_id,
+            t3: ic.channel.substring(0, 3).toUpperCase(),
+            gross: gross,
+            nb: g_nb,
+            ren: g_ren,
+            contest: contest,
+            clawback: clawback,
+            tds: tds,
+            pt: pt,
+            net: net,
+            status: status,
+            reconciled: Math.random() > 0.1
+         };
+      });
 
-        const pageHTML = `
-      <div class="grid-cards animate-slide-in">
-        <div class="metric-card">
-          <div class="metric-title">Gross Liability (Month)</div>
-          <div class="metric-value">${App.formatCurrency(aggregate.totalLiability)}</div>
-          <div class="metric-trend trend-info"><i class="fas fa-file-invoice"></i> Pending Final Approval</div>
+      const pageHTML = `
+      <div class="grid-2 animate-slide-in">
+        <!-- Reconciliation Overview -->
+        <div class="panel" style="padding: 15px;">
+           <h3 style="font-size: 1.1rem; margin-bottom: 15px;"><i class="fas fa-check-double" style="color:var(--primary)"></i> Auto Invoice Reconciliation</h3>
+           
+           <div class="grid-2" style="margin-bottom: 0;">
+             <div class="metric-card" style="box-shadow: none; border: 1px solid var(--border);">
+               <div class="metric-title">System Payable (Calculated)</div>
+               <div class="metric-value">${App.formatCurrency(aggregate.totalLiability)}</div>
+               <div class="metric-trend trend-info"><i class="fas fa-calculator"></i> Post-Clawbacks</div>
+             </div>
+             
+             <div class="metric-card" style="box-shadow: none; border: 1px solid var(--border); ${invoices.filter(i => !i.reconciled).length > 0 ? 'border-color: var(--danger)' : 'border-color: var(--success)'}">
+               <div class="metric-title">Approved by Finance</div>
+               <div class="metric-value">${App.formatCurrency(aggregate.totalLiability * 0.98)}</div>
+               <div class="metric-trend ${invoices.filter(i => !i.reconciled).length > 0 ? 'trend-down' : 'trend-up'}"><i class="fas fa-file-signature"></i> ${App.formatCurrency(aggregate.totalLiability * 0.02)} Variance</div>
+             </div>
+           </div>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">TDS Withheld (10%)</div>
-          <div class="metric-value" style="color:var(--danger)">${App.formatCurrency(aggregate.tdsDeducted)}</div>
-          <div class="metric-trend trend-down"><i class="fas fa-university"></i> Payable to Dept.</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Net Payable to IC/SMs</div>
-          <div class="metric-value" style="color:var(--success)">
-            ${App.formatCurrency(aggregate.totalLiability - aggregate.tdsDeducted - aggregate.ptDeducted)}
-          </div>
-          <div class="metric-trend trend-up"><i class="fas fa-wallet"></i> Adjusted for PT & TDS</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Reconciliation Issues</div>
-          <div class="metric-value">${invoices.filter(i => !i.reconciled).length} 
-            <span style="font-size:1rem; color:var(--text-muted)">Invoices</span>
-          </div>
-          <button class="btn btn-outline btn-sm" style="margin-top:10px; width:100%" onclick="alert('Exporting Rejections...')">Export Errors</button>
+
+        <!-- Exception Tagging -->
+        <div class="panel" style="padding: 15px;">
+           <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Exception Tagging (Holds)</h3>
+           <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <div class="status-badge" style="background:#fee2e2; color:#b91c1c; font-size: 0.8rem;"><i class="fas fa-ban"></i> Clawback Dispute (${invoices.filter(i => !i.reconciled).length})</div>
+              <div class="status-badge" style="background:#ffedd5; color:#c2410c; font-size: 0.8rem;"><i class="fas fa-id-card"></i> KYC Missing (12)</div>
+              <div class="status-badge" style="background:#fef3c7; color:#b45309; font-size: 0.8rem;"><i class="fas fa-university"></i> Bank Reject (4)</div>
+           </div>
+           <button class="btn btn-outline btn-sm" style="width:100%" onclick="document.getElementById('exception-detail').style.display = document.getElementById('exception-detail').style.display === 'none' ? 'block' : 'none'">Review Exceptions</button>
+           
+           <div id="exception-detail" style="display:none; margin-top: 15px; max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size:0.78rem;">
+                 <thead><tr><th>Invoice</th><th>Agent</th><th>Exception Type</th><th>Amount Held</th></tr></thead>
+                 <tbody>
+                    ${invoices.filter(i => !i.reconciled).map(inv => `
+                       <tr style="border-left: 3px solid var(--danger);">
+                          <td><strong>${inv.id}</strong></td>
+                          <td>${inv.ic}</td>
+                          <td><span class="status-badge status-danger" style="font-size:0.7rem">Clawback Dispute</span></td>
+                          <td style="color:var(--danger)">-${App.formatCurrency(inv.clawback)}</td>
+                       </tr>
+                    `).join('')}
+                    ${Array.from({ length: 12 }, (_, i) => `
+                       <tr style="border-left: 3px solid #c2410c;">
+                          <td><strong>INV-IC${String(i + 60).padStart(4, '0')}-26M3</strong></td>
+                          <td>${['Priya Nair', 'Sneha Gupta', 'Riya Mehta', 'Kavya Pillai', 'Aarti Sharma', 'Pooja Verma', 'Anjali Bose', 'Diya Reddy', 'Neha Jain', 'Sanya Rao', 'Aditya Kumar', 'Vivaan Das'][i]}</td>
+                          <td><span class="status-badge" style="background:#ffedd5; color:#c2410c; font-size:0.7rem">KYC Missing</span></td>
+                          <td style="color:#c2410c">Held</td>
+                       </tr>
+                    `).join('')}
+                    ${Array.from({ length: 4 }, (_, i) => `
+                       <tr style="border-left: 3px solid #b45309;">
+                          <td><strong>INV-IC${String(i + 80).padStart(4, '0')}-26M3</strong></td>
+                          <td>${['Arjun Das', 'Ishaan Patel', 'Shaurya Singh', 'Krishna Iyer'][i]}</td>
+                          <td><span class="status-badge" style="background:#fef3c7; color:#b45309; font-size:0.7rem">Bank Reject</span></td>
+                          <td style="color:#b45309">Returned</td>
+                       </tr>
+                    `).join('')}
+                 </tbody>
+              </table>
+           </div>
         </div>
       </div>
 
@@ -95,7 +132,7 @@
         <div class="panel-header">
           <h3 class="panel-title">Provisional Payout Register (Pre-Disbursement)</h3>
           <div>
-            <button class="btn btn-primary" onclick="alert('Pushing to Core Banking System...')"><i class="fas fa-upload"></i> Push to Banking</button>
+            <button class="btn btn-primary" onclick="alert('Pushing Approved Batch to Core Banking System...')"><i class="fas fa-upload"></i> Push to Banking</button>
           </div>
         </div>
         
@@ -105,53 +142,207 @@
               <tr>
                 <th>Invoice Ref</th>
                 <th>Agent Info</th>
-                <th>Tags (T1/T2/T3)</th>
-                <th>Commissions (NB / Ren / Contest)</th>
+                <th>Reconciliation Status</th>
+                <th>Commissions (NB / Ren)</th>
                 <th>Clawback / Penalty</th>
                 <th>Deductions (TDS & PT)</th>
                 <th>Net Payable</th>
-                <th>Status Lifecycle</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              ${invoices.slice(0, 15).map(inv => {
-            let badge = 'status-success';
-            let icon = 'fa-check';
-            if (inv.status === 'Approved') { badge = 'status-warning'; icon = 'fa-clock'; }
-            if (inv.status === 'Submitted to Bank') { badge = 'status-info'; icon = 'fa-university'; }
-            if (inv.status === 'Reversed') { badge = 'status-danger'; icon = 'fa-undo'; }
+              ${invoices.slice(0, 8).map(inv => {
+         let reconBadge = '<span class="status-badge status-success" style="font-size:0.75rem"><i class="fas fa-check-circle"></i> Matched</span>';
+         let rowStyle = '';
 
-            const reconFlag = !inv.reconciled ? '<i class="fas fa-exclamation-triangle" style="color:var(--danger)" title="Reconciliation Mismatch"></i>' : '';
+         if (!inv.reconciled) {
+            reconBadge = '<span class="status-badge status-danger" style="font-size:0.75rem"><i class="fas fa-exclamation-circle"></i> Clawback Pending</span>';
+            rowStyle = 'background-color: var(--bg-app); border-left: 3px solid var(--danger);';
+         }
 
-            return `
-                <tr style="${!inv.reconciled ? 'background-color: var(--danger-bg)' : ''}">
-                  <td><strong>${inv.id}</strong> <br/> ${reconFlag}</td>
+         return `
+                <tr style="${rowStyle}">
+                  <td><strong>${inv.id}</strong></td>
                   <td>${inv.ic} <br><span style="color:var(--text-muted)">${inv.code}</span></td>
-                  <td><span class="status-badge" style="background:#e2e8f0">${inv.t1}</span><br>${inv.t2} / ${inv.t3}</td>
+                  <td>${reconBadge}</td>
                   <td>
                     NB: ${App.formatCurrency(inv.nb)}<br>
-                    Ren: ${App.formatCurrency(inv.ren)}<br>
-                    C: ${App.formatCurrency(inv.contest)}
+                    Ren: ${App.formatCurrency(inv.ren)}
                   </td>
                   <td style="color:var(--danger)">
                     ${inv.clawback > 0 ? '-' + App.formatCurrency(inv.clawback) : '0'}
                   </td>
                   <td style="color:var(--text-muted)">
-                    T: ${App.formatCurrency(inv.tds)}<br>
-                    P: ${App.formatCurrency(inv.pt)}
+                    TDS: ${App.formatCurrency(inv.tds)}<br>
+                    PT: ${App.formatCurrency(inv.pt)}
                   </td>
                   <td style="font-weight:bold; color:var(--success)">${App.formatCurrency(inv.net)}</td>
-                  <td><span class="status-badge ${badge}"><i class="fas ${icon}"></i> ${inv.status}</span></td>
+                  <td>
+                     ${!inv.reconciled ? `<button class="btn btn-sm" style="background:var(--bg-app); border:1px solid #cbd5e1; color: var(--text-main);" onclick="alert('Opening Hold Override Workflow...')">Override</button>` : `<button class="btn btn-sm btn-outline" disabled style="opacity:0.5">Cleared</button>`}
+                  </td>
                 </tr>
               `}).join('')}
             </tbody>
           </table>
         </div>
       </div>
+
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.2s; margin-top:20px;">
+        
+        <!-- Accounting Integration (T-Code Mapping & Reversal) -->
+        <div class="panel">
+           <div class="panel-header">
+             <h3 class="panel-title"><i class="fas fa-network-wired"></i> Accounting Integration Preview</h3>
+           </div>
+           
+           <div class="table-responsive" style="margin-bottom: 15px;">
+              <table class="data-table" style="font-size: 0.8rem">
+                 <thead>
+                    <tr>
+                       <th>T-Code (GL Account)</th>
+                       <th>Description</th>
+                       <th>Dr / Cr</th>
+                       <th>Simulated Entry Amount</th>
+                    </tr>
+                 </thead>
+                 <tbody>
+                    <tr>
+                       <td><code>650120</code></td>
+                       <td>Brokerage & Commissions</td>
+                       <td style="color:var(--danger)">Dr.</td>
+                       <td>${App.formatCurrency(aggregate.nbComponent)}</td>
+                    </tr>
+                    <tr>
+                       <td><code>650122</code></td>
+                       <td>Renewal Commissions</td>
+                       <td style="color:var(--danger)">Dr.</td>
+                       <td>${App.formatCurrency(aggregate.renewalComponent)}</td>
+                    </tr>
+                    <tr>
+                       <td><code>220310</code></td>
+                       <td>TDS Payable to Gov</td>
+                       <td style="color:var(--success)">Cr.</td>
+                       <td>${App.formatCurrency(aggregate.tdsDeducted)}</td>
+                    </tr>
+                    <tr style="background-color:var(--bg-app); font-weight:bold;">
+                       <td><code>200100</code></td>
+                       <td>Agent Payable Acct</td>
+                       <td style="color:var(--success)">Cr.</td>
+                       <td>${App.formatCurrency(aggregate.totalLiability - aggregate.tdsDeducted)}</td>
+                    </tr>
+                 </tbody>
+              </table>
+           </div>
+
+           <div class="alert-box alert-warning">
+              <i class="fas fa-undo alert-icon"></i>
+              <div style="font-size:0.85rem">
+                 <strong>Reversal Tracking:</strong> 2 Invoices queued for Reversal. GL Account <code>650120</code> will be credited automatically. 
+                 <a href="#" onclick="event.preventDefault(); document.getElementById('journal-detail').style.display = document.getElementById('journal-detail').style.display === 'none' ? 'block' : 'none'" style="color:var(--primary); font-weight:500;">View Journal Entries</a>
+              </div>
+           </div>
+
+           <div id="journal-detail" style="display:none; margin-top: 10px;">
+              <table class="data-table" style="font-size:0.78rem;">
+                 <thead><tr><th>Date</th><th>GL Account</th><th>Description</th><th>Dr</th><th>Cr</th><th>Ref Invoice</th></tr></thead>
+                 <tbody>
+                    <tr>
+                       <td>04-Mar-26</td>
+                       <td><code>650120</code></td>
+                       <td>Reversal - Brokerage Comm.</td>
+                       <td>-</td>
+                       <td style="color:var(--success)">${App.formatCurrency(invoices.find(i => i.status === 'Reversed')?.nb || 45000)}</td>
+                       <td>INV-IC0005-26M3</td>
+                    </tr>
+                    <tr>
+                       <td>04-Mar-26</td>
+                       <td><code>200100</code></td>
+                       <td>Reversal - Agent Payable</td>
+                       <td style="color:var(--danger)">${App.formatCurrency(invoices.find(i => i.status === 'Reversed')?.net || 38000)}</td>
+                       <td>-</td>
+                       <td>INV-IC0005-26M3</td>
+                    </tr>
+                    <tr style="background:var(--bg-app);">
+                       <td>04-Mar-26</td>
+                       <td><code>650120</code></td>
+                       <td>Reversal - Brokerage Comm.</td>
+                       <td>-</td>
+                       <td style="color:var(--success)">${App.formatCurrency(invoices.find(i => i.code === 'IC0042')?.nb || 52000)}</td>
+                       <td>INV-IC0042-26M3</td>
+                    </tr>
+                    <tr style="background:var(--bg-app);">
+                       <td>04-Mar-26</td>
+                       <td><code>200100</code></td>
+                       <td>Reversal - Agent Payable</td>
+                       <td style="color:var(--danger)">${App.formatCurrency(invoices.find(i => i.code === 'IC0042')?.net || 41000)}</td>
+                       <td>-</td>
+                       <td>INV-IC0042-26M3</td>
+                    </tr>
+                 </tbody>
+              </table>
+           </div>
+        </div>
+
+        <!-- Payment Lifecycle Tracker -->
+        <div class="panel">
+           <div class="panel-header">
+              <h3 class="panel-title"><i class="fas fa-stream"></i> Payment Lifecycle Tracker</h3>
+           </div>
+           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
+              Live tracking of the approved disbursement batch through Core Banking APIs. 
+           </div>
+
+           <div style="display:flex; flex-direction: column; gap: 15px; position:relative;">
+              <div style="position:absolute; left: 15px; top: 10px; bottom: 30px; width:2px; background:var(--border); z-index:0;"></div>
+              
+              <div style="display:flex; align-items:flex-start; gap: 15px; position:relative; z-index:1;">
+                 <div style="width:32px; height:32px; border-radius:50%; background:var(--success); color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-check"></i>
+                 </div>
+                 <div>
+                    <strong style="display:block; font-size:0.9rem;">Batch Approved (Finance)</strong>
+                    <div style="font-size:0.8rem; color:var(--text-muted)">152 Invoices cleared Auto-Reconciliation.<br>Today, 10:45 AM</div>
+                 </div>
+              </div>
+
+              <div style="display:flex; align-items:flex-start; gap: 15px; position:relative; z-index:1;">
+                 <div style="width:32px; height:32px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-university"></i>
+                 </div>
+                 <div>
+                    <strong style="display:block; font-size:0.9rem;">Submitted to Core Banking (SFTP)</strong>
+                    <div style="font-size:0.8rem; color:var(--text-muted)">Pending acknowledgment from HDFC CMS.<br>Today, 02:15 PM</div>
+                 </div>
+              </div>
+
+              <div style="display:flex; align-items:flex-start; gap: 15px; position:relative; z-index:1;">
+                 <div style="width:32px; height:32px; border-radius:50%; background:var(--bg-app); border:2px solid var(--border); color:var(--text-muted); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-wallet"></i>
+                 </div>
+                 <div style="opacity: 0.6;">
+                    <strong style="display:block; font-size:0.9rem;">Paid to Agent Accounts</strong>
+                    <div style="font-size:0.8rem; color:var(--text-muted)">Awaiting UTR Confirmation from Bank.</div>
+                 </div>
+              </div>
+
+              <div style="display:flex; align-items:flex-start; gap: 15px; position:relative; z-index:1;">
+                 <div style="width:32px; height:32px; border-radius:50%; background:var(--bg-app); border:2px solid var(--danger); color:var(--danger); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fas fa-undo"></i>
+                 </div>
+                 <div style="opacity: 0.8;">
+                    <strong style="display:block; font-size:0.9rem; color:var(--danger)">Reversed / Bounced (Exceptions)</strong>
+                    <div style="font-size:0.8rem; color:var(--text-muted)">Queued for investigation (2 Invoices).</div>
+                 </div>
+              </div>
+
+           </div>
+        </div>
+
+      </div>
     `;
 
-        App.setContent(pageHTML);
-    </script>
+      App.setContent(pageHTML);
+   </script>
 </body>
 
 </html>

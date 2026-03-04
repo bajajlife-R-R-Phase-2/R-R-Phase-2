@@ -2,162 +2,413 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InsureCentive - Query Management</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsureCentive - Query & Dispute Management</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-    <script src="js/mockData.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        App.renderLayout('query');
-        App.setPageTitle('Query & Dispute Resolution');
+  <script src="js/mockData.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.renderLayout('query');
+    App.setPageTitle('Query Ticket Operations');
 
-        const queries = App.getData('ic_platform_queries');
-        const schemes = App.getData('ic_platform_schemes');
+    let queries = JSON.parse(localStorage.getItem('ic_platform_queries')) || [];
+    const schemes = JSON.parse(localStorage.getItem('ic_platform_schemes')) || [];
+    let currentUser = 'Checker'; // For mock demonstration of Maker-Checker
 
-        // Count disputes per scheme
-        const heatmapData = {};
-        schemes.forEach(s => heatmapData[s.id] = { name: s.name, count: 0 });
-        queries.forEach(q => { if (heatmapData[q.scheme_tagged]) heatmapData[q.scheme_tagged].count++; });
+    const initializePage = () => {
+      const openCount = queries.filter(q => q.status === 'Open' || q.status === 'WIP').length;
+      const breachedCount = queries.filter(q => q.sla_breached && (q.status === 'Open' || q.status === 'WIP')).length;
+      const pendingApprovalCount = queries.filter(q => q.status === 'Pending Approval').length;
 
-        const openCount = queries.filter(q => q.status === 'Open').length;
-        const wipCount = queries.filter(q => q.status === 'WIP').length;
-        const slaBreach = queries.filter(q => q.sla_breached && q.status !== 'Closed').length;
-
-        const pageHTML = `
-      <div class="grid-cards animate-slide-in">
-        <div class="metric-card">
-          <div class="metric-title">Open Tickets</div>
-          <div class="metric-value">${openCount}</div>
-          <div class="metric-trend trend-down"><i class="fas fa-exclamation-circle"></i> Requires attention</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">WIP Tickets</div>
-          <div class="metric-value">${wipCount}</div>
-          <div class="metric-trend trend-info"><i class="fas fa-spinner"></i> Under investigation</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">SLA Breached</div>
-          <div class="metric-value" style="color: var(--danger)">${slaBreach}</div>
-          <div class="metric-trend trend-down"><i class="fas fa-fire"></i> Escalated to Zone Head</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Actions</div>
-          <button class="btn btn-primary" onclick="showCreateTicket()" style="margin-top: 10px; width:100%">+ Raise Ticket</button>
-        </div>
-      </div>
-
-      <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s">
-        <!-- Ticket Table -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Active Queries</h3>
+      const pageHTML = `
+        <div class="alert-box alert-info animate-slide-in">
+          <i class="fas fa-info-circle alert-icon"></i>
+          <div>
+            <strong>Maker-Checker Mode Active:</strong> You are currently logged in as <strong>${currentUser}</strong>. Adjust role in top right menu for testing.
           </div>
-          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-            <table class="data-table">
-              <thead><tr><th>Ticket ID</th><th>IC ID</th><th>Issue</th><th>Status</th><th>Timer</th><th>Explain</th></tr></thead>
-              <tbody>
-                ${queries.slice(0, 10).map(q => {
-            let badgeData = '';
-            if (q.status === 'Open') badgeData = 'class="status-badge status-danger"';
-            else if (q.status === 'WIP') badgeData = 'class="status-badge status-warning"';
-            else if (q.status === 'Resolved') badgeData = 'class="status-badge status-info"';
-            else badgeData = 'class="status-badge status-success"';
+        </div>
 
-            return `
+        <div class="grid-cards animate-slide-in">
+          <div class="metric-card">
+            <div class="metric-title">Open / WIP Queries</div>
+            <div class="metric-value">${openCount}</div>
+            <div class="metric-trend trend-warning"><i class="fas fa-ticket-alt"></i> Requires attention</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">SLA Breached / Escalated</div>
+            <div class="metric-value" style="color: var(--danger)">${breachedCount}</div>
+            <div class="metric-trend trend-down"><i class="fas fa-clock"></i> Critical Priority</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Pending Approval</div>
+            <div class="metric-value" style="color: var(--info)">${pendingApprovalCount}</div>
+            <div class="metric-trend trend-info"><i class="fas fa-check-double"></i> Requires Checker Sign-off</div>
+          </div>
+          <div class="metric-card" style="box-shadow: none; border: 1px dashed var(--primary); display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--hover-color)" onclick="openNewTicketModal()">
+            <div style="text-align: center; color: var(--primary)">
+              <i class="fas fa-plus-circle" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+              <strong>Create New Ticket</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-cards animate-slide-in" style="animation-delay: 0.1s; grid-template-columns: 2fr 1fr;">
+          <div class="panel">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 class="panel-title">Active Dispute Ledger</h3>
+              <div style="display:flex; gap: 10px;">
+                <button class="btn btn-outline btn-sm" onclick="toggleRole()"><i class="fas fa-exchange-alt"></i> Switch Role (Maker/Checker)</button>
+                <input type="text" id="ticket-search" class="form-control" style="width:200px; height:32px;" placeholder="Search Ticket ID..." onkeyup="renderLedgerTable()">
+              </div>
+            </div>
+            <div style="overflow-x: auto; max-height: 400px;">
+              <table class="data-table">
+                <thead>
                   <tr>
-                    <td>${q.id}</td>
-                    <td>${q.ic_id}</td>
-                    <td>${q.issue_type}</td>
-                    <td><span ${badgeData}>${q.status}</span></td>
-                    <td>${q.sla_breached && q.status !== 'Closed' ? '<span style="color:var(--danger)">Breached</span>' : '48 hrs'}</td>
-                    <td><button class="action-btn" onclick="showBreakdown('${q.id}')"><i class="fas fa-search-dollar"></i></button></td>
+                    <th>Ticket ID</th>
+                    <th>Agent ID</th>
+                    <th>Issue Category</th>
+                    <th>Status</th>
+                    <th>Workflow Stage</th>
+                    <th>Action</th>
                   </tr>
-                `}).join('')}
-              </tbody>
-            </table>
+                </thead>
+                <tbody id="ledger-tbody">
+                  <!-- Dynamically Rendered -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Dispute Heatmap (By Scheme)</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="disputeChart"></canvas>
+            </div>
           </div>
         </div>
 
-        <!-- Heatmap Chart -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Dispute Heatmap (By Scheme)</h3>
+        <div class="grid-2 animate-slide-in" style="animation-delay: 0.2s">
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Resolver Performance Dashboard</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Resolver</th>
+                    <th>Role</th>
+                    <th>Tickets Handled</th>
+                    <th>Avg RT (hrs)</th>
+                    <th>Escalation %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Priya Sharma</strong></td>
+                    <td>Maker</td>
+                    <td>145</td>
+                    <td>4.2</td>
+                    <td><span style="color:var(--success)">2.1%</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Amit Patel</strong></td>
+                    <td>Maker</td>
+                    <td>132</td>
+                    <td>5.1</td>
+                    <td><span style="color:var(--warning)">5.4%</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Neha Gupta</strong></td>
+                    <td>Checker</td>
+                    <td>280</td>
+                    <td>1.5</td>
+                    <td><span style="color:var(--success)">0.8%</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Rahul Verma</strong></td>
+                    <td>Checker</td>
+                    <td>215</td>
+                    <td>2.8</td>
+                    <td><span style="color:var(--danger)">8.2%</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="chart-container">
-            <canvas id="disputeChart"></canvas>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Escalation Trend Analysis (L6M)</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="escalationTrendChart"></canvas>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
-        App.setContent(pageHTML);
+      App.setContent(pageHTML);
+      renderLedgerTable();
+      renderChartData();
+    };
 
-        const disputeCtx = document.getElementById('disputeChart');
-        const chartLabels = Object.values(heatmapData).map(d => d.name).slice(0, 5);
-        const chartData = Object.values(heatmapData).map(d => d.count).slice(0, 5);
+    window.toggleRole = () => {
+      currentUser = currentUser === 'Maker' ? 'Checker' : 'Maker';
+      initializePage(); // Re-render to update the notice and buttons
+    };
 
-        new Chart(disputeCtx, {
-            type: 'bar',
-            data: {
-                labels: chartLabels,
-                datasets: [{
-                    label: 'Ticket Volume',
-                    data: chartData,
-                    backgroundColor: '#ef4444',
-                    borderRadius: 4
-                }]
-            },
-            options: { maintainAspectRatio: false }
-        });
+    window.renderLedgerTable = () => {
+      const searchTerm = document.getElementById('ticket-search')?.value.toLowerCase() || '';
+      const tbody = document.getElementById('ledger-tbody');
+      if (!tbody) return;
 
-        window.showCreateTicket = function () {
-            const modalBody = `
+      // Filter by search
+      let filtered = queries.filter(q => q.id.toLowerCase().includes(searchTerm) || q.ic_id.toLowerCase().includes(searchTerm));
+
+      // Sort newest first logically
+      filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      tbody.innerHTML = filtered.map(q => {
+        let bgStyle = q.sla_breached && (q.status === 'Open' || q.status === 'WIP') ? 'background: rgba(239, 68, 68, 0.05);' : '';
+        if (q.status === 'Escalated') bgStyle = 'background: rgba(239, 68, 68, 0.1);';
+
+        let statusClass = 'status-success';
+        if (q.status === 'Open') statusClass = 'status-danger';
+        else if (q.status === 'WIP') statusClass = 'status-warning';
+        else if (q.status === 'Pending Approval') statusClass = 'status-info';
+        else if (q.status === 'Escalated') statusClass = 'status-danger';
+
+        // Workflow Action Logic based on Maker/Checker
+        let actionButtons = `<button class="action-btn" title="View Detail" onclick="openViewModal('${q.id}')"><i class="fas fa-eye"></i></button>`;
+
+        if (currentUser === 'Maker') {
+          if (q.status === 'Open' || q.status === 'WIP') {
+            actionButtons += `<button class="action-btn" style="color:var(--info)" title="Submit for Approval" onclick="updateTicketStatus('${q.id}', 'Pending Approval')"><i class="fas fa-share-square"></i></button>`;
+            actionButtons += `<button class="action-btn" style="color:var(--danger)" title="Escalate to L2" onclick="updateTicketStatus('${q.id}', 'Escalated')"><i class="fas fa-arrow-circle-up"></i></button>`;
+          }
+        } else if (currentUser === 'Checker') {
+          if (q.status === 'Pending Approval') {
+            actionButtons += `<button class="action-btn" style="color:var(--success)" title="Approve & Resolve" onclick="updateTicketStatus('${q.id}', 'Resolved')"><i class="fas fa-check-circle"></i></button>`;
+            actionButtons += `<button class="action-btn" style="color:var(--danger)" title="Reject back to Maker" onclick="updateTicketStatus('${q.id}', 'WIP')"><i class="fas fa-times-circle"></i></button>`;
+          }
+        }
+
+        if (q.status !== 'Closed' && q.status !== 'Resolved') {
+          actionButtons += `<button class="action-btn" title="Explain Logic" onclick="openExplainModal('${q.id}')"><i class="fas fa-magic"></i></button>`;
+        }
+
+        return `
+          <tr style="${bgStyle}">
+            <td style="font-family: monospace; font-weight:600">
+              ${q.id}
+              ${q.sla_breached ? '<i class="fas fa-fire" style="color:var(--danger); margin-left:5px" title="SLA Breached"></i>' : ''}
+              ${q.status === 'Escalated' ? '<i class="fas fa-exclamation-triangle" style="color:var(--danger); margin-left:5px" title="Escalated"></i>' : ''}
+            </td>
+            <td>${q.ic_id}</td>
+            <td>${q.issue_type}</td>
+            <td><span class="status-badge ${statusClass}">${q.status}</span></td>
+            <td>${q.status === 'Pending Approval' ? 'Awaiting Checker' : (q.status === 'Escalated' ? 'L2 Desk' : (q.status === 'Resolved' || q.status === 'Closed' ? 'Completed' : 'Maker Action'))}</td>
+            <td style="display:flex; gap:10px;">${actionButtons}</td>
+          </tr>
+        `;
+      }).join('');
+    };
+
+    window.updateTicketStatus = (tktId, newStatus) => {
+      const idx = queries.findIndex(q => q.id === tktId);
+      if (idx > -1) {
+        queries[idx].status = newStatus;
+        // if escalating, also flag breach
+        if (newStatus === 'Escalated') queries[idx].sla_breached = true;
+
+        localStorage.setItem('ic_platform_queries', JSON.stringify(queries));
+        initializePage(); // Re-render stats and table
+      }
+    };
+
+    const renderChartData = () => {
+      const schemeCounts = {};
+      queries.forEach(q => {
+        const s = schemes.find(s => s.id === q.scheme_tagged)?.name || 'Other';
+        schemeCounts[s] = (schemeCounts[s] || 0) + 1;
+      });
+
+      // Clear old chart if exists to prevent overlapping
+      let chartStatus = Chart.getChart("disputeChart");
+      if (chartStatus != undefined) { chartStatus.destroy(); }
+
+      App.renderChart('disputeChart', 'bar', {
+        labels: Object.keys(schemeCounts),
+        datasets: [{
+          label: 'Tickets',
+          data: Object.values(schemeCounts),
+          backgroundColor: '#f59e0b',
+          borderRadius: 4
+        }]
+      });
+
+      // Escalation Trend Chart
+      let escChartStatus = Chart.getChart("escalationTrendChart");
+      if (escChartStatus != undefined) { escChartStatus.destroy(); }
+
+      App.renderChart('escalationTrendChart', 'line', {
+        labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        datasets: [{
+          label: 'Total Escalations',
+          data: [12, 19, 15, 25, 22, 18],
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      });
+    };
+
+    // Modals
+    window.openNewTicketModal = () => {
+      const content = `
         <div class="form-group">
-          <label class="form-label">Select Scheme / Contest</label>
-          <select class="form-control">
-            ${schemes.map(s => `<option value="${s.id}">${s.name} (${s.type})</option>`).join('')}
+          <label class="form-label">Search Agent (IC ID)</label>
+          <input type="text" id="new-tkt-ic" class="form-control" placeholder="e.g. IC0024" value="IC0012">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Related Scheme / Contest</label>
+          <select id="new-tkt-scheme" class="form-control">
+            ${schemes.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Issue Type</label>
-          <select class="form-control">
+          <label class="form-label">Issue Category</label>
+          <select id="new-tkt-issue" class="form-control">
             <option>Payout Mismatch</option>
             <option>Policy Not Reflected</option>
+            <option>Club Status Incorrect</option>
             <option>Clawback Dispute</option>
-            <option>TDS Issue</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Description</label>
-          <textarea class="form-control" rows="4" placeholder="Auto-tagging enabled based on scheme..."></textarea>
+          <label class="form-label">Detailed Remarks</label>
+          <textarea id="new-tkt-remarks" class="form-control" rows="3">Agent claims NB target was met last month but payout was short.</textarea>
         </div>
       `;
-            App.openModal("Create New Query", modalBody);
-        };
+      const footer = `
+        <button class="btn btn-outline" onclick="App.closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitNewTicket()"><i class="fas fa-save"></i> Submit Ticket</button>
+      `;
+      App.openModal('Create Support Ticket', content, footer);
+    };
 
-        window.showBreakdown = function (ticketId) {
-            const modalBody = `
-        <div class="alert-box alert-info">
-          <i class="fas fa-info-circle alert-icon"></i>
-          <div><strong>Explain My Payout for ${ticketId}:</strong> The system deducted 50% NB owing to 13M persistency dropping below 75% as per Q3 Logic.</div>
+    window.submitNewTicket = () => {
+      const icId = document.getElementById('new-tkt-ic').value;
+      const scheme = document.getElementById('new-tkt-scheme').value;
+      const issue = document.getElementById('new-tkt-issue').value;
+      const remarks = document.getElementById('new-tkt-remarks').value;
+
+      const newId = 'TKT' + Math.floor(Math.random() * 9000 + 1000);
+      const newTkt = {
+        id: newId,
+        ic_id: icId,
+        issue_type: issue,
+        scheme_tagged: scheme,
+        status: 'Open',
+        created_at: new Date().toISOString(),
+        sla_breached: false,
+        remarks: remarks
+      };
+
+      queries.unshift(newTkt); // Add to top
+      localStorage.setItem('ic_platform_queries', JSON.stringify(queries));
+
+      App.closeModal();
+      initializePage(); // Re-render everything
+    };
+
+    window.openViewModal = (tktId) => {
+      const ticket = queries.find(q => q.id === tktId);
+      if (!ticket) return;
+      const schemeObj = schemes.find(s => s.id === ticket.scheme_tagged) || { name: 'N/A' };
+
+      const content = `
+          <div style="display:flex; flex-direction:column; gap: 15px;">
+            <div style="display:flex; justify-content: space-between; align-items:flex-start; background:var(--bg-app); padding:15px; border-radius:var(--radius-sm);">
+              <div>
+                <h4 style="margin-bottom:5px; color:var(--primary)">${ticket.id}</h4>
+                <div style="font-size:0.85rem; color:var(--text-muted)">Created: ${new Date(ticket.created_at).toLocaleString()}</div>
+              </div>
+              <span class="status-badge ${ticket.status === 'Open' || ticket.status === 'Escalated' ? 'status-danger' : 'status-info'}">${ticket.status}</span>
+            </div>
+            
+            <table class="data-table">
+               <tbody>
+                  <tr><td style="font-weight:600; width:150px; background:var(--bg-app)">Agent ID</td><td>${ticket.ic_id}</td></tr>
+                  <tr><td style="font-weight:600; background:var(--bg-app)">Issue Type</td><td>${ticket.issue_type}</td></tr>
+                  <tr><td style="font-weight:600; background:var(--bg-app)">Scheme</td><td>${schemeObj.name} (${ticket.scheme_tagged})</td></tr>
+                  <tr><td style="font-weight:600; background:var(--bg-app)">SLA Status</td><td>${ticket.sla_breached ? '<span style="color:var(--danger)"><i class="fas fa-fire"></i> Breached</span>' : '<span style="color:var(--success)"><i class="fas fa-check"></i> Within TAT</span>'}</td></tr>
+               </tbody>
+            </table>
+            
+            <div>
+               <h4 style="font-size:0.95rem; margin-bottom:8px;">Maker Remarks</h4>
+               <div style="background:#fff; border:1px solid var(--border); padding:12px; border-radius:var(--radius-sm); font-size:0.9rem; min-height:60px;">
+                  ${ticket.remarks || 'Standard system dispute raised by CRM channel.'}
+               </div>
+            </div>
+            
+            <div>
+               <h4 style="font-size:0.95rem; margin-bottom:8px;">Workflow History</h4>
+               <ul style="font-size:0.85rem; color:var(--text-muted); padding-left:20px; line-height:1.6">
+                  <li>Ticket Raised -> System Integration (${new Date(ticket.created_at).toLocaleDateString()})</li>
+                  ${ticket.status === 'Pending Approval' || ticket.status === 'Resolved' ? '<li>Maker updated status to Pending Approval. Awaiting Checker.</li>' : ''}
+                  ${ticket.status === 'Resolved' ? '<li style="color:var(--success)">Checker Approved. Issue Resolved.</li>' : ''}
+                  ${ticket.status === 'Escalated' ? '<li style="color:var(--danger)">Ticket Escalated to Regional Desk for Exception Approval.</li>' : ''}
+               </ul>
+            </div>
+          </div>
+        `;
+      App.openModal('Ticket Detail View', content, '<button class="btn btn-outline" onclick="App.closeModal()">Close</button>');
+    };
+
+    window.openExplainModal = (tktId) => {
+      const content = `
+        <div style="background: var(--bg-app); padding: 15px; border-radius: var(--radius-sm); border-left: 4px solid var(--primary);">
+          <h4 style="margin-bottom: 10px">Rule Execution Trace Simulator</h4>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Simulating backend logic applied to agent for Ticket ${tktId}:</p>
+          
+          <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
+            <li><strong>Input:</strong> Total NB FYP = ₹ 18,40,000</li>
+            <li><strong>Condition 1 (Slab Matrix):</strong> FYP falls in <em>Slab 2 (15L - 25L)</em> -> Base Rate 15%</li>
+            <li><strong>Condition 2 (Persistency Gate):</strong> 13M Persistency is <strong>71%</strong></li>
+            <li style="color: var(--danger)"><strong>Gate Triggered:</strong> Persistency < 75% threshold.</li>
+            <li><strong>Penalty Applied:</strong> 50% reduction in base commission rate.</li>
+            <li><strong>Output:</strong> Effective Rate = 7.5%. Final Payout = ₹ 1,38,000</li>
+          </ul>
         </div>
-        <table class="data-table">
-          <tr><th>Component</th><th>Amount</th><th>Logic Applied</th></tr>
-          <tr><td>Base NB Premium</td><td>₹ 1,50,000</td><td>Standard 15% Slab</td></tr>
-          <tr><td>Persistency Penalty</td><td style="color:var(--danger)">- ₹ 75,000</td><td>< 75% Gate triggered</td></tr>
-          <tr><td>Net Payable</td><td>₹ 75,000</td><td>After deductions</td></tr>
-        </table>
+        <div style="margin-top:20px;">
+          <textarea class="form-control" rows="2" placeholder="Send explanation to agent..."></textarea>
+        </div>
       `;
-            App.openModal("Payout Breakdown Simulation", modalBody);
-        }
-    </script>
+      const footer = `
+        <button class="btn btn-outline" onclick="App.closeModal()">Close</button>
+        <button class="btn btn-primary" onclick="App.closeModal()"><i class="fas fa-paper-plane"></i> Send to Agent</button>
+      `;
+      App.openModal('Automated Payout Explanation', content, footer);
+    };
+
+    // Boot
+    initializePage();
+
+  </script>
 </body>
 
 </html>

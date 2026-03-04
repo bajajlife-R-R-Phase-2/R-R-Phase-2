@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,217 +9,596 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-  
+
   <script src="js/mockData.js"></script>
   <script src="js/app.js"></script>
   <script>
-    // 1. Render Basic Layout
+    if (!localStorage.getItem('ic_platform_psf_partners')) {
+      localStorage.removeItem('ic_platform_initialized');
+      initMockData();
+    }
+
     App.renderLayout('executive');
-    App.setPageTitle('Executive Overview');
+    App.setPageTitle('Executive Dashboard');
 
-    // 2. Load Aggregated Data
-    const agg = App.getData('ic_platform_aggregate');
-    
-    // 3. Define Page Content
+    const aggData = JSON.parse(localStorage.getItem('ic_platform_aggregate'));
+    const schemes = JSON.parse(localStorage.getItem('ic_platform_schemes')) || [];
+    const ics = JSON.parse(localStorage.getItem('ic_platform_ics')) || [];
+    const psfPartners = JSON.parse(localStorage.getItem('ic_platform_psf_partners')) || [];
+    const inhouseTeams = JSON.parse(localStorage.getItem('ic_platform_inhouse_teams')) || [];
+    const inhouseExecs = JSON.parse(localStorage.getItem('ic_platform_inhouse_execs')) || [];
+
+    const agencyIcs = ics.filter(ic => ic.channel === 'Agency');
+    const ibIcs = ics.filter(ic => ic.channel === 'Bancassurance');
+
+    // --- AGGREGATIONS ---
+    let agTarget = 0, agAchieved = 0, agMdrt = 0, agGold = 0, agNb = 0, agRen = 0;
+    agencyIcs.forEach(ic => {
+      agTarget += ic.goalsheet_target;
+      agAchieved += ic.nb_premium;
+      agNb += ic.nb_premium * 0.15;
+      agRen += ic.renewal_premium * 0.05;
+      if (ic.club_status === 'MDRT') agMdrt++;
+      if (ic.club_status === 'Gold') agGold++;
+    });
+    const agAchPct = (agAchieved / agTarget) * 100 || 0;
+    const agPayout = agNb + agRen;
+
+    let ibNb = 0, ibRen = 0, ibPremium = 0, ibTarget = 0;
+    ibIcs.forEach(ic => {
+      ibPremium += ic.nb_premium;
+      ibTarget += ic.goalsheet_target;
+      ibNb += ic.nb_premium * 0.15;
+      ibRen += ic.renewal_premium * 0.05;
+    });
+    const ibPayout = ibNb + ibRen;
+
+    let psfPremium = 0, psfIncentive = 0, psfActive = 0, psfActivationRates = [], psfPersistency = [];
+    psfPartners.forEach(p => {
+      psfPremium += p.premium;
+      psfIncentive += p.incentive_paid;
+      if (p.status === 'Active') psfActive++;
+      psfActivationRates.push(p.activation_rate);
+      psfPersistency.push(p.persistency);
+    });
+    const psfAvgActivation = psfActivationRates.reduce((a, b) => a + b, 0) / (psfActivationRates.length || 1);
+    const psfAvgPersistency = psfPersistency.reduce((a, b) => a + b, 0) / (psfPersistency.length || 1);
+    const psfCoa = psfPremium > 0 ? (psfIncentive / psfPremium) * 100 : 0;
+
+    let ihPremium = 0, ihIncentive = 0, ihLeads = 0, ihPolicies = 0, ihCalls = 0;
+    inhouseExecs.forEach(e => {
+      ihPremium += e.premium_generated;
+      ihIncentive += e.incentive_earned;
+      ihLeads += e.leads_assigned;
+      ihPolicies += e.policies_issued;
+      ihCalls += e.calls_made;
+    });
+    const ihConvRate = ihLeads > 0 ? (ihPolicies / ihLeads) * 100 : 0;
+    const ihCostPerPolicy = ihPolicies > 0 ? ihIncentive / ihPolicies : 0;
+
     const pageHTML = `
-      <!-- AI Insight Alert -->
-      <div class="alert-box alert-warning animate-slide-in">
-        <i class="fas fa-exclamation-triangle alert-icon"></i>
-        <div>
-          <strong>AI Insight:</strong> Persistency drop of 2.4% in the North Zone may reduce overall payout by ${App.formatCurrency(agg.totalLiability * 0.02)} next cycle. Consider immediate Nudge campaign.
-        </div>
-      </div>
-
-      <!-- Top KPI Metric Cards -->
-      <div class="grid-cards animate-slide-in" style="animation-delay: 0.1s">
-        <div class="metric-card">
-          <div class="metric-title">Total Incentive Liability</div>
-          <div class="metric-value">${App.formatCurrency(agg.totalLiability)}</div>
-          <div class="metric-trend trend-up"><i class="fas fa-arrow-up"></i> 12% vs last quarter</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Accrued vs Paid</div>
-          <div class="metric-value">${App.formatCurrency(agg.paidLiability)}</div>
-          <div class="metric-trend trend-up" style="color: var(--text-muted)">
-            <div class="progress-bar-container">
-              <div class="progress-bar" style="width: 75%; background-color: var(--success)"></div>
-            </div>
-            <span style="margin-top: 8px; font-size: 0.75rem;">75% Disbursed</span>
-          </div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Contest Participation</div>
-          <div class="metric-value">68%</div>
-          <div class="metric-trend trend-up"><i class="fas fa-arrow-up"></i> ↑ 5% from Q3</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Total Tax & Compliance Deductions</div>
-          <div class="metric-value">${App.formatCurrency(agg.tdsDeducted + agg.ptDeducted)}</div>
-          <div class="metric-trend trend-down"><i class="fas fa-info-circle"></i> 10% TDS + Standard PT applied</div>
-        </div>
-      </div>
-
-      <!-- Main Charts Grid -->
-      <div class="grid-2 animate-slide-in" style="animation-delay: 0.2s">
-        <!-- NB vs Renewal -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">NB vs Renewal Premium Contribution</h3>
-            <button class="action-btn"><i class="fas fa-ellipsis-v"></i></button>
-          </div>
-          <div class="chart-container">
-            <canvas id="ratioChart"></canvas>
-          </div>
+      <div class="tabs-container">
+        <div class="tabs-header">
+          <button class="tab-btn active" onclick="switchTab('agency', this)"><i class="fas fa-building"></i> Agency Channel</button>
+          <button class="tab-btn" onclick="switchTab('ib', this)"><i class="fas fa-university"></i> IB</button>
+          <button class="tab-btn" onclick="switchTab('psf', this)"><i class="fas fa-handshake"></i> PSF</button>
+          <button class="tab-btn" onclick="switchTab('inhouse', this)"><i class="fas fa-headset"></i> In-House</button>
         </div>
         
-        <!-- Payout Trend -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Monthly Payout Trend (Simulated YoY)</h3>
+        <!-- ======================= AGENCY TAB ======================= -->
+        <div id="tab-agency" class="tab-content active">
+          
+          <div class="alert-box alert-warning animate-slide-in">
+            <i class="fas fa-exclamation-triangle alert-icon"></i>
+            <div>
+              <strong>Exception Alert:</strong> 12 SM overrides are pending approval due to L1/L2 benefit disputes. Budget utilization is reaching 90% for "MDRT Fast Track".
+            </div>
           </div>
-          <div class="chart-container">
-            <canvas id="trendChart"></canvas>
-          </div>
-        </div>
-      </div>
 
-      <!-- Bottom Grid -->
-      <div class="grid-2 animate-slide-in" style="animation-delay: 0.3s">
-        <!-- Persistency Table Grid / Heatmap -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">13M Persistency Heatmap (By Zone)</h3>
+          <div class="grid-cards animate-slide-in">
+            <div class="metric-card">
+              <div class="metric-title">Goalsheet Target vs Achievement</div>
+              <div class="metric-value">${agAchPct.toFixed(1)}%</div>
+              <div class="metric-trend trend-info"><i class="fas fa-bullseye"></i> Target: ${App.formatCurrency(agTarget)}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Total Incentive Liability</div>
+              <div class="metric-value">${App.formatCurrency(agPayout)}</div>
+              <div class="metric-trend trend-up"><i class="fas fa-coins"></i> 25% Accrued / 75% Paid</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Agency NB vs Renewal Split</div>
+              <div class="metric-value">${((agNb / agPayout) * 100).toFixed(0)}% / ${((agRen / agPayout) * 100).toFixed(0)}%</div>
+              <div class="metric-trend trend-success"><i class="fas fa-chart-pie"></i> Healthy Mix</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">RNB Performance</div>
+              <div class="metric-value">1.12x</div>
+              <div class="metric-trend trend-success"><i class="fas fa-chart-line"></i> Above 1.0 threshold</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Club Tracker / Qualifiers</div>
+              <div class="metric-value">${agMdrt} <span style="font-size: 1rem; color: var(--text-muted)">MDRT</span></div>
+              <div class="metric-trend trend-up"><i class="fas fa-medal"></i> ${agGold} Gold Qualifiers</div>
+            </div>
           </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Zone</th>
-                <th>13M Average</th>
-                <th>Impact</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>West</td>
-                <td><div class="heat-cell heat-high">88%</div></td>
-                <td><span class="status-badge status-success">Optimal</span></td>
-                <td>20% Bonus applied</td>
-              </tr>
-              <tr>
-                <td>South</td>
-                <td><div class="heat-cell heat-mid">78%</div></td>
-                <td><span class="status-badge status-warning">Moderate</span></td>
-                <td>Standard Payout</td>
-              </tr>
-              <tr>
-                <td>North</td>
-                <td><div class="heat-cell heat-low">68%</div></td>
-                <td><span class="status-badge status-danger">Critical</span></td>
-                <td>Penalty: 50% NB Cut</td>
-              </tr>
-              <tr>
-                <td>East</td>
-                <td><div class="heat-cell heat-high">82%</div></td>
-                <td><span class="status-badge status-success">Optimal</span></td>
-                <td>Standard Payout</td>
-              </tr>
-            </tbody>
-          </table>
+
+          <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s">
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Monthly Payout Trend</h3></div>
+              <div class="chart-container"><canvas id="agTrendChart"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Persistency Heatmap (13th Month)</h3></div>
+              <table class="data-table">
+                <thead><tr><th>Zone</th><th>Persistency %</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>North</td><td>82%</td><td class="heat-cell heat-mid">Watch</td></tr>
+                  <tr><td>South</td><td>91%</td><td class="heat-cell heat-high">Excellent</td></tr>
+                  <tr><td>West</td><td>86%</td><td class="heat-cell heat-high">Good</td></tr>
+                  <tr><td>East</td><td>74%</td><td class="heat-cell heat-low">Critical</td></tr>
+                </tbody>
+              </table>
+              <div style="margin-top:20px;">
+                 <h3 class="panel-title" style="margin-bottom:10px; font-size:1rem;">L1 / L2 Benefit & SM Override Tracker</h3>
+                 <table class="data-table">
+                    <thead><tr><th>SM Code</th><th>Team Ach%</th><th>L1 Override</th><th>L2 Benefit</th></tr></thead>
+                    <tbody>
+                        <tr><td>SM042</td><td>115%</td><td>₹ 1,45,000</td><td>₹ 50,000</td></tr>
+                        <tr><td>SM019</td><td>104%</td><td>₹ 1,12,000</td><td>₹ 30,000</td></tr>
+                        <tr><td>SM088</td><td>92%</td><td>₹ 85,000</td><td>-</td></tr>
+                    </tbody>
+                 </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="panel animate-slide-in" style="animation-delay: 0.2s">
+            <div class="panel-header">
+              <h3 class="panel-title">Contest & Power Reward Leaderboard</h3>
+              <button class="btn btn-outline btn-sm" onclick="openBudgetModal()"><i class="fas fa-chart-bar"></i> View Budgets Tracker</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr><th>IC ID</th><th>Name</th><th>NB Achieved</th><th>% Achievement</th><th>Power Reward Status</th></tr>
+              </thead>
+              <tbody>
+                ${agencyIcs.sort((a, b) => b.nb_premium - a.nb_premium).slice(0, 5).map(ic => {
+      const pct = (ic.nb_premium / ic.goalsheet_target) * 100;
+      return `
+                    <tr>
+                      <td style="font-family: monospace">${ic.id}</td>
+                      <td><strong>${ic.name}</strong></td>
+                      <td>${App.formatCurrency(ic.nb_premium)}</td>
+                      <td>
+                        <div class="progress-bar-container">
+                          <div class="progress-bar" style="width: ${Math.min(pct, 100)}%; background-color: ${pct >= 100 ? 'var(--success)' : 'var(--primary)'}"></div>
+                        </div>
+                        <span style="font-size: 0.8rem;">${pct.toFixed(0)}%</span>
+                      </td>
+                      <td>${ic.QSB_achieved ? '<span class="status-badge status-success">Unlocked</span>' : '<span class="status-badge status-warning">In Progress</span>'}</td>
+                    </tr>
+                  `;
+    }).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="panel animate-slide-in" style="animation-delay: 0.3s; margin-top:20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">Club Membership Distribution</h3>
+            </div>
+            <div class="chart-container" style="height: 250px;">
+              <canvas id="agClubChart"></canvas>
+            </div>
+          </div>
         </div>
 
-        <!-- Channel Wise Payout Split -->
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Channel-wise Liability Split</h3>
-            <button class="btn btn-outline btn-sm" onclick="showBudgetDrilldown()">Drill Down</button>
+        <!-- ======================= IB TAB ======================= -->
+        <div id="tab-ib" class="tab-content">
+          <div class="alert-box alert-info animate-slide-in">
+            <i class="fas fa-info-circle alert-icon"></i>
+            <div>
+              <strong>IB Operational Alert:</strong> Axis Bank API integration is facing intermittent issues. Auto-accruals are failing over to manual validation queues.
+            </div>
           </div>
-          <div class="chart-container">
-            <canvas id="channelChart"></canvas>
+          
+          <div class="grid-cards">
+            <div class="metric-card">
+              <div class="metric-title">Overachievement vs Goalsheet</div>
+              <div class="metric-value" style="color: var(--success)">118.5%</div>
+              <div class="metric-trend trend-success"><i class="fas fa-arrow-up"></i> Achieved: ${App.formatCurrency(ibPremium)}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Total Incentive Liability</div>
+              <div class="metric-value">${App.formatCurrency(ibPayout)}</div>
+              <div class="metric-trend trend-info"><i class="fas fa-coins"></i> Approx 30% Accrued</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Self vs Assisted Sourcing (RM)</div>
+              <div class="metric-value">75% / 25%</div>
+              <div class="metric-trend trend-success"><i class="fas fa-users"></i> RM driven majority</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Channel-wise NB / Ren Split</div>
+              <div class="metric-value">${((ibNb / ibPayout) * 100).toFixed(0)}% / ${((ibRen / ibPayout) * 100).toFixed(0)}%</div>
+              <div class="metric-trend trend-info"><i class="fas fa-chart-pie"></i> View Drilldown</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Active Bank Partners</div>
+              <div class="metric-value">3</div>
+              <div class="metric-trend trend-info"><i class="fas fa-university"></i> HDFC, SBI, Axis</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Contest Payout Projection</div>
+              <div class="metric-value">₹ 1.2 Cr</div>
+              <div class="metric-trend trend-warning"><i class="fas fa-coins"></i> 80% Budget Utilized</div>
+            </div>
+          </div>
+          
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Monthly Payout Trend (IB)</h3></div>
+              <div class="chart-container"><canvas id="ibTrendChart"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Bank Partner-wise Performance</h3></div>
+              <div class="chart-container"><canvas id="ibBankChart"></canvas></div>
+            </div>
+          </div>
+          
+          <div class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Circle Head Performance Track</h3>
+              <button class="btn btn-outline btn-sm" onclick="alert('Viewing Budget Utilization Modal...')"><i class="fas fa-search"></i> Budget Tracker</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Circle Head</th><th>Bank Partner</th><th>Activation %</th><th>Persistency</th><th>Contest Participation</th><th>Growth vs LY</th></tr></thead>
+              <tbody>
+                <tr><td>Rahul M.</td><td>HDFC</td><td>45%</td><td>88%</td><td>92%</td><td><span style="color:var(--success)">+12%</span></td></tr>
+                <tr><td>Priya S.</td><td>SBI</td><td>62%</td><td>94%</td><td>85%</td><td><span style="color:var(--success)">+18%</span></td></tr>
+                <tr><td>Anil D.</td><td>Axis</td><td>28%</td><td>72%</td><td>45%</td><td><span style="color:var(--danger)">-5%</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="panel" style="margin-top:20px;">
+            <div class="panel-header">
+              <h3 class="panel-title">Sourcing Type Breakdown</h3>
+            </div>
+            <div class="chart-container" style="height: 250px;">
+              <canvas id="ibSourcingChart"></canvas>
+            </div>
           </div>
         </div>
+
+        <!-- ======================= PSF TAB ======================= -->
+        <div id="tab-psf" class="tab-content">
+          <div class="alert-box alert-danger animate-slide-in">
+            <i class="fas fa-times-circle alert-icon"></i>
+            <div>
+              <strong>PSF Security Alert:</strong> Data mismatch identified from upstream systems for Web Aggregators. Incentive processing halted.
+            </div>
+          </div>
+          
+          <div class="grid-cards">
+            <div class="metric-card">
+              <div class="metric-title">Total PSF Premium (MTD / YTD)</div>
+              <div class="metric-value">${App.formatCurrency(psfPremium)}</div>
+              <div class="metric-trend trend-up"><i class="fas fa-arrow-up"></i> ${psfActive} Active Partners</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Cost of Acquisition (COA)</div>
+              <div class="metric-value">${psfCoa.toFixed(2)}%</div>
+              <div class="metric-trend ${psfCoa > 6 ? 'trend-down' : 'trend-success'}"><i class="fas ${psfCoa > 6 ? 'fa-arrow-up' : 'fa-arrow-down'}"></i> Avg Prem/Partner: ${App.formatCurrency(psfPremium / psfPartners.length)}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Performance: Rate <span style="font-size:0.8rem;font-weight:normal">(Act / Pers)</span></div>
+              <div class="metric-value">${psfAvgActivation.toFixed(1)}% / ${psfAvgPersistency.toFixed(1)}%</div>
+              <div class="metric-trend trend-success"><i class="fas fa-shield-alt"></i> Policy Conversion: 18%</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Total Incentive Payout</div>
+              <div class="metric-value">${App.formatCurrency(psfIncentive)}</div>
+              <div class="metric-trend trend-info"><i class="fas fa-coins"></i> Participant Rate: 95%</div>
+            </div>
+          </div>
+          
+          <div class="grid-3">
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Product Mix (Prot vs Sav vs ULIP)</h3></div>
+              <div class="chart-container" style="height: 250px;"><canvas id="psfMixChart"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Incentive Cost vs Premium Ratio</h3></div>
+              <div class="chart-container" style="height: 250px;"><canvas id="psfCostChart"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">Top Performing Partners</h3>
+              </div>
+              <table class="data-table" style="font-size: 0.85rem;">
+                <thead><tr><th>Partner</th><th>Productivity</th><th>Prem Contribution</th></tr></thead>
+                <tbody>
+                  ${psfPartners.sort((a, b) => b.premium - a.premium).slice(0, 4).map(p => `<tr><td>${p.name}</td><td>${App.formatCurrency(p.premium / p.policies)}/pol</td><td style="color:var(--success)">${App.formatCurrency(p.premium)}</td></tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="grid-2">
+              <div class="panel">
+                  <div class="panel-header"><h3 class="panel-title">Dormant & Underperforming Partners List</h3></div>
+                  <table class="data-table">
+                    <thead><tr><th>Partner Name</th><th>Status</th><th>Avg Premium</th><th>Activation Rate</th></tr></thead>
+                    <tbody>
+                      ${psfPartners.filter(p => p.status === 'Dormant' || p.activation_rate < 40).slice(0, 4).map(p => `
+                          <tr><td>${p.name}</td><td><span class="status-badge status-danger">${p.status}</span></td><td>${App.formatCurrency(p.premium)}</td><td style="color:var(--danger)">${p.activation_rate}%</td></tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+              </div>
+              <div class="panel">
+                  <div class="panel-header"><h3 class="panel-title">Scheme-wise Payout Distribution</h3></div>
+                  <div class="chart-container"><canvas id="psfSchemeDistribChart"></canvas></div>
+              </div>
+          </div>
+
+          <button class="btn btn-primary" style="margin-top:10px; width:100%" onclick="alert('Navigating into Region → Partner → Sales Executive → Policy Level.\\n\\nShowing: \\n- Policy Details\\n- Scheme Applicable\\n- Rule Engine Trace')">
+            <i class="fas fa-sitemap"></i> Drilldown Views: Open Region -> Partner -> Policy Explorer
+          </button>
+        </div>
+
+        <!-- ======================= INHOUSE TAB ======================= -->
+        <div id="tab-inhouse" class="tab-content">
+          <div class="alert-box alert-warning animate-slide-in">
+            <i class="fas fa-exclamation-triangle alert-icon"></i>
+            <div>
+              <strong>In-House Operational Warning:</strong> High lead drop-off noticed in "Direct Sales Team 3". Target shortfall warnings triggered for 12 executives.
+            </div>
+          </div>
+          <div class="grid-cards">
+            <div class="metric-card">
+              <div class="metric-title">Lead Conversion Rate</div>
+              <div class="metric-value">${ihConvRate.toFixed(1)}%</div>
+              <div class="metric-trend trend-success"><i class="fas fa-arrow-up"></i> ${ihLeads} Leads / ${ihPolicies} Issued</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Cost per Policy Sold</div>
+              <div class="metric-value">${App.formatCurrency(ihCostPerPolicy)}</div>
+              <div class="metric-trend trend-info"><i class="fas fa-money-bill"></i> Avg Prem/Policy: ${ihPolicies > 0 ? App.formatCurrency(ihPremium / ihPolicies) : 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Sales Activity Metrics</div>
+              <div class="metric-value">${App.formatNumber(ihCalls)} <span style="font-size: 1rem; color: var(--text-muted)">Calls</span></div>
+              <div class="metric-trend trend-warning"><i class="fas fa-phone"></i> Scheduled Follow-ups: ${Math.floor(ihLeads * 0.4)}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Incentive & Revenue</div>
+              <div class="metric-value">${App.formatCurrency(ihIncentive)}</div>
+              <div class="metric-trend trend-success"><i class="fas fa-chart-line"></i> Total Premium: ${App.formatCurrency(ihPremium)}</div>
+            </div>
+          </div>
+          
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Conversion Funnel & Policy Issuance Rate</h3></div>
+              <div class="funnel-container">
+                <div class="funnel-step">Leads Assigned: ${ihLeads} (100%)</div>
+                <div class="funnel-step">Calls Made / Contacted: ${ihCalls} (${((ihCalls / ihLeads) * 100).toFixed(0)}%)</div>
+                <div class="funnel-step">Follow-ups: ${Math.floor(ihLeads * 0.4)} (40%)</div>
+                <div class="funnel-step">Proposals Generated: ${Math.floor(ihLeads * 0.2)} (20%)</div>
+                <div class="funnel-step">Policies Issued: ${ihPolicies} (${ihConvRate.toFixed(1)}%)</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Calls vs Policies Chart</h3></div>
+              <div class="chart-container"><canvas id="ihCallsVsPolicies"></canvas></div>
+            </div>
+          </div>
+          
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-header"><h3 class="panel-title">Executive Productivity Ranking & Incentive</h3></div>
+              <div style="max-height: 250px; overflow-y: auto;">
+                <table class="data-table">
+                  <thead><tr><th>Executive Name</th><th>Team</th><th>Pol. Issued</th><th>Incentive Earned</th></tr></thead>
+                  <tbody>
+                    ${inhouseExecs.sort((a, b) => b.policies_issued - a.policies_issued).slice(0, 8).map(e => `<tr><td>${e.name}</td><td>${e.team_id}</td><td>${e.policies_issued}</td><td style="color:var(--success)">${App.formatCurrency(e.incentive_earned)}</td></tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel">
+               <div class="panel-header"><h3 class="panel-title">Incentive vs Revenue Chart</h3></div>
+               <div class="chart-container"><canvas id="ihRevChart"></canvas></div>
+            </div>
+          </div>
+          
+          <!-- Drilldown Control -->
+          <button class="btn btn-outline" style="width:100%" onclick="alert('Drilldown Active:\\nTracking Flow: Team → Sales Executive → Lead → Policy\\n\\nShowing Lead source, Conversion timeline, Policy issued, and Incentive generated.')">
+             <i class="fas fa-search-plus"></i> Drilldown: Navigate Team → Sales Exec → Lead → Policy Details
+          </button>
+        </div>
+        
       </div>
     `;
 
     App.setContent(pageHTML);
 
-    // 4. Initialize Charts
-    const ratioCtx = document.getElementById('ratioChart');
-    new Chart(ratioCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['New Business (NB)', 'Renewal Business'],
-        datasets: [{
-          data: [agg.nbComponent, agg.renewalComponent],
-          backgroundColor: ['#0f3f8c', '#10b981'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom' }
-        },
-        cutout: '70%'
-      }
-    });
-
-    const trendCtx = document.getElementById('trendChart');
-    new Chart(trendCtx, {
-      type: 'bar',
-      data: {
+    // Render Charts after HTML is injected
+    setTimeout(() => {
+      // --- Agency Charts ---
+      App.renderChart('agTrendChart', 'bar', {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
         datasets: [{
-          label: '2025 Payout Array',
-          data: [1200000, 1900000, 3000000, 1500000, 1400000, parseFloat(agg.totalLiability.toFixed(0))],
-          backgroundColor: '#3b82f6',
+          label: 'Payout Amount',
+          data: [12000000, 15000000, 14000000, 18000000, 22000000, agPayout / 6],
+          backgroundColor: '#10b981',
           borderRadius: 4
         }]
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { 
-            beginAtZero: true, 
-            grid: { color: '#e2e8f0', borderDash: [5, 5] },
-            ticks: {
-              callback: function(value) { return '₹' + (value/100000) + 'L'; }
-            }
-          },
-          x: { grid: { display: false } }
-        }
-      }
-    });
+      });
 
-    const channelCtx = document.getElementById('channelChart');
-    new Chart(channelCtx, {
-      type: 'pie',
-      data: {
-        labels: ['Agency Channel', 'Bancassurance', 'Direct/In-House'],
+      // --- IB Charts ---
+      App.renderChart('ibBankChart', 'bar', {
+        labels: ['HDFC', 'SBI', 'Axis', 'ICICI'],
         datasets: [{
-          data: [65, 25, 10], // Mock Split %
-          backgroundColor: ['#f08a30', '#205bc7', '#a5b4fc'],
+          label: 'Performance Score',
+          data: [85, 62, 45, 78],
+          backgroundColor: ['#6366f1', '#3b82f6', '#f59e0b', '#8b5cf6'],
+          borderRadius: 4
+        }]
+      });
+      App.renderChart('ibTrendChart', 'line', {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: 'Total Paid (IB)',
+          data: [5000000, 7000000, 6500000, 8000000, 9500000, ibPayout / 4],
+          borderColor: '#3b82f6',
+          fill: true,
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4
+        }]
+      });
+
+      App.renderChart('ibSourcingChart', 'doughnut', {
+        labels: ['Self-Sourcing (RM)', 'Assisted (Bank Staff)'],
+        datasets: [{
+          data: [75, 25],
+          backgroundColor: ['#8b5cf6', '#a5b4fc'],
           borderWidth: 0
         }]
-      },
-      options: { maintainAspectRatio: false }
-    });
+      }, { cutout: '65%' });
 
-    // Handle Drill Down Modal
-    window.showBudgetDrilldown = function() {
-      const modalBody = `
+      const clubs = ['Bronze', 'Silver', 'Gold', 'MDRT', 'COT', 'TOT'];
+      const clubCounts = clubs.map(c => agencyIcs.filter(ic => ic.club_status === c).length);
+
+      App.renderChart('agClubChart', 'bar', {
+        labels: clubs,
+        datasets: [{
+          label: 'Number of ICs',
+          data: clubCounts,
+          backgroundColor: ['#cd7f32', '#c0c0c0', '#ffd700', '#10b981', '#3b82f6', '#8b5cf6'],
+          borderRadius: 4
+        }]
+      });
+
+      // --- PSF Charts ---
+      let mixData = { protection: 0, savings: 0, ulip: 0 };
+      psfPartners.forEach(p => {
+        mixData.protection += p.product_mix.protection;
+        mixData.savings += p.product_mix.savings;
+        mixData.ulip += p.product_mix.ulip;
+      });
+      App.renderChart('psfMixChart', 'doughnut', {
+        labels: ['Protection', 'Savings', 'ULIP'],
+        datasets: [{
+          data: [mixData.protection, mixData.savings, mixData.ulip],
+          backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+          borderWidth: 0
+        }]
+      }, { cutout: '65%' });
+
+      App.renderChart('psfCostChart', 'line', {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: 'Premium (L)',
+          data: [40, 45, 52, 60, 58, 70],
+          borderColor: '#3b82f6',
+          tension: 0.4
+        }, {
+          label: 'Cost Ratio %',
+          data: [5, 5.2, 5.5, 5.1, 5.4, 5.0],
+          borderColor: '#ef4444',
+          tension: 0.4,
+          yAxisID: 'y1'
+        }]
+      }, {
+        scales: {
+          y: { type: 'linear', position: 'left' },
+          y1: { type: 'linear', position: 'right' }
+        }
+      });
+
+      App.renderChart('psfSchemeDistribChart', 'pie', {
+        labels: ['MDRT Fast Track', 'Persistency Bonus', 'New Partner Spiff'],
+        datasets: [{
+          data: [45, 30, 25],
+          backgroundColor: ['#f59e0b', '#10b981', '#6366f1']
+        }]
+      });
+
+      // --- Inhouse Charts ---
+      App.renderChart('ihCallsVsPolicies', 'bar', {
+        labels: ['T01', 'T02', 'T03', 'T04', 'T05'],
+        datasets: [
+          { label: 'Calls (x100)', data: [12, 19, 8, 15, 22], backgroundColor: '#a5b4fc', borderRadius: 4 },
+          { label: 'Policies', data: [8, 15, 5, 12, 18], backgroundColor: '#4f46e5', borderRadius: 4 }
+        ]
+      });
+
+      App.renderChart('ihRevChart', 'line', {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [
+          { label: 'Revenue Generated', data: [120, 150, 180, 210, 170, 240], borderColor: '#10b981', tension: 0.4 },
+          { label: 'Incentive Cost', data: [12, 15, 18, 21, 17, 24], borderColor: '#f59e0b', tension: 0.4 }
+        ]
+      });
+
+    }, 200);
+
+    window.switchTab = function (tabId, btnElement) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+        // Force hide any potentially sticky elements
+        content.style.display = 'none';
+      });
+
+      btnElement.classList.add('active');
+      const activeTab = document.getElementById('tab-' + tabId);
+      activeTab.classList.add('active');
+      activeTab.style.display = 'block';
+
+      // Force charts to resize so they don't appear collapsed when tab un-hides
+      setTimeout(() => {
+        Object.keys(Chart.instances).forEach(function (id) {
+          Chart.instances[id].resize();
+        });
+      }, 50);
+    };
+
+    window.openBudgetModal = () => {
+      let tableRows = schemes.map(s => {
+        let utilPct = (s.utilized / s.budget) * 100;
+        let color = utilPct > 90 ? 'var(--danger)' : (utilPct > 70 ? 'var(--warning)' : 'var(--success)');
+        return `
+          <tr>
+            <td>${s.name}</td>
+            <td>${s.type}</td>
+            <td>${App.formatCurrency(s.budget)}</td>
+            <td>
+              <div class="progress-bar-container">
+                <div class="progress-bar" style="width: ${utilPct}%; background-color: ${color}"></div>
+              </div>
+            </td>
+            <td>${utilPct.toFixed(1)}%</td>
+          </tr>
+        `;
+      }).join('');
+
+      let content = `
         <table class="data-table">
-          <tr><th>Channel</th><th>Total Budget Allocation</th><th>Utilized</th></tr>
-          <tr><td>Agency</td><td>₹ 15 Cr</td><td>₹ 12.5 Cr <span style="color:var(--danger)">🔥</span></td></tr>
-          <tr><td>Banca</td><td>₹ 5 Cr</td><td>₹ 2 Cr</td></tr>
-          <tr><td>Direct</td><td>₹ 2 Cr</td><td>₹ 0.5 Cr</td></tr>
+          <thead><tr><th>Scheme Name</th><th>Type</th><th>Total Budget</th><th>Utilization</th><th>%</th></tr></thead>
+          <tbody>${tableRows}</tbody>
         </table>
       `;
-      App.openModal("Budget Utilization Drill-down", modalBody);
+      App.openModal('Scheme Budget Drill-down', content);
     };
 
   </script>
 </body>
+
 </html>

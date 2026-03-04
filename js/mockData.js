@@ -3,18 +3,16 @@
 // ==========================================
 
 const initMockData = () => {
-    if (localStorage.getItem('ic_platform_initialized')) {
-        return; // Already initialized
-    }
+    localStorage.clear(); // Wiping old structure to force new Zones & Branches
 
-    console.log("Initializing Mock Data for Indian Life Insurance Platform...");
+    console.log("Initializing Mock Data for Indian Life Insurance Platform (Updated Zones)...");
 
     // 1. Zones
-    const zones = ["North", "South", "West", "East"];
+    const zones = ["North", "South", "West", "East", "Mumbai East", "Mumbai West"];
 
     // 2. Branches
     const branches = [
-        { id: 'B01', name: 'Mumbai South', zone: 'West' },
+        { id: 'B01', name: 'South Bombay', zone: 'West' },
         { id: 'B02', name: 'Pune Central', zone: 'West' },
         { id: 'B03', name: 'Delhi NCR', zone: 'North' },
         { id: 'B04', name: 'Chandigarh', zone: 'North' },
@@ -22,8 +20,10 @@ const initMockData = () => {
         { id: 'B06', name: 'Chennai Hub', zone: 'South' },
         { id: 'B07', name: 'Hyderabad Heights', zone: 'South' },
         { id: 'B08', name: 'Kolkata Metro', zone: 'East' },
-        { id: 'B09', name: 'Ahmedabad Commerce', zone: 'West' },
-        { id: 'B10', name: 'Jaipur Pink City', zone: 'North' }
+        { id: 'B09', name: 'Ghatkopar', zone: 'Mumbai East' },
+        { id: 'B10', name: 'Mulund', zone: 'Mumbai East' },
+        { id: 'B11', name: 'Andheri', zone: 'Mumbai West' },
+        { id: 'B12', name: 'Borivali', zone: 'Mumbai West' }
     ];
 
     // Random Data Helpers
@@ -137,6 +137,55 @@ const initMockData = () => {
         ptDeducted: ics.length * 200 // Rs 200 PT per IC
     };
 
+    // 7. PSF Partners
+    const psf_partners = [];
+    const entityTypes = ["Broker", "Corporate Agent", "Web Aggregator"];
+    for (let i = 1; i <= 15; i++) {
+        const type = randEl(entityTypes);
+        psf_partners.push({
+            id: `PSF${i.toString().padStart(3, '0')}`,
+            name: `Partner Solutions ${String.fromCharCode(64 + i)}`,
+            type: type,
+            status: Math.random() > 0.1 ? 'Active' : 'Dormant',
+            premium: rand(5000000, 50000000), // 50L to 5Cr
+            policies: rand(100, 1000),
+            persistency: rand(60, 95),
+            incentive_paid: rand(100000, 2000000),
+            activation_rate: rand(30, 90), // % of their sub-agents active
+            product_mix: { protection: rand(10, 40), savings: rand(20, 50), ulip: rand(10, 30) }
+        });
+    }
+
+    // 8. In-House Teams
+    const inhouse_teams = [];
+    const inhouse_execs = [];
+    for (let i = 1; i <= 5; i++) {
+        inhouse_teams.push({
+            id: `T${i.toString().padStart(2, '0')}`,
+            name: `Direct Sales Team ${i}`,
+            manager: `${randEl(names)} ${randEl(surnames)}`
+        });
+
+        // Exes per team
+        for (let j = 1; j <= 8; j++) {
+            const leads = rand(100, 500);
+            const conversion = rand(5, 25); // 5% to 25%
+            const policies = Math.floor(leads * (conversion / 100));
+            const premium = policies * rand(20000, 100000); // 20k to 1L avg premium
+            inhouse_execs.push({
+                id: `IH${i}${j.toString().padStart(2, '0')}`,
+                name: `${randEl(names)} ${randEl(surnames)}`,
+                team_id: `T${i.toString().padStart(2, '0')}`,
+                leads_assigned: leads,
+                calls_made: leads * rand(2, 5),
+                conversion_rate: conversion,
+                policies_issued: policies,
+                premium_generated: premium,
+                incentive_earned: premium * 0.10 // 10% flat mock
+            });
+        }
+    }
+
     // Save to LocalStorage
     localStorage.setItem('ic_platform_zones', JSON.stringify(zones));
     localStorage.setItem('ic_platform_branches', JSON.stringify(branches));
@@ -145,6 +194,9 @@ const initMockData = () => {
     localStorage.setItem('ic_platform_schemes', JSON.stringify(schemes));
     localStorage.setItem('ic_platform_queries', JSON.stringify(queries));
     localStorage.setItem('ic_platform_aggregate', JSON.stringify(aggregateData));
+    localStorage.setItem('ic_platform_psf_partners', JSON.stringify(psf_partners));
+    localStorage.setItem('ic_platform_inhouse_teams', JSON.stringify(inhouse_teams));
+    localStorage.setItem('ic_platform_inhouse_execs', JSON.stringify(inhouse_execs));
     localStorage.setItem('ic_platform_initialized', 'true');
 
     console.log("Mock data generated and stored.");

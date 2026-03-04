@@ -2,108 +2,183 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InsureCentive - Vendor Management</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsureCentive - Vendor Management</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
 
-    <script src="js/mockData.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        App.renderLayout('vendor');
-        App.setPageTitle('External Vendor Lifecycle');
+  <script src="js/mockData.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.renderLayout('vendor');
+    App.setPageTitle('External Vendor Lifecycle');
 
-        const vendors = [
-            { id: 'VND001', name: 'MacMillan Corporate Training', type: 'Training Partner', payout: 1500000, sla: 92, kyc: 'Valid', expiry: '2026-11-01', alert: false },
-            { id: 'VND002', name: 'Taj Hotels & Resorts', type: 'Contest Sponsor', payout: 5000000, sla: 98, kyc: 'Valid', expiry: '2026-04-10', alert: true },
-            { id: 'VND003', name: 'Tech Mahindra', type: 'Digital Partner', payout: 2500000, sla: 85, kyc: 'Expired', expiry: '2026-02-28', alert: true },
-            { id: 'VND004', name: 'Makemytrip Corporate', type: 'Travel Partner', payout: 3200000, sla: 95, kyc: 'Valid', expiry: '2027-01-15', alert: false },
-            { id: 'VND005', name: 'Gold Coin Jewels', type: 'Reward Fulfillment', payout: 800000, sla: 76, kyc: 'Pending', expiry: '2026-06-30', alert: false }
-        ];
+    const vendors = [
+      { id: 'VND001', name: 'MacMillan Corporate Training', type: 'Training Partner', payout: 1500000, sla: 92, kyc: 'Valid', expiry: '2026-11-01', alert: false },
+      { id: 'VND002', name: 'Taj Hotels & Resorts', type: 'Contest Sponsor', payout: 5000000, sla: 98, kyc: 'Valid', expiry: '2026-04-10', alert: true },
+      { id: 'VND003', name: 'Tech Mahindra', type: 'Digital Partner', payout: 2500000, sla: 85, kyc: 'Expired', expiry: '2026-02-28', alert: true },
+      { id: 'VND004', name: 'Makemytrip Corporate', type: 'Travel Partner', payout: 3200000, sla: 95, kyc: 'Valid', expiry: '2027-01-15', alert: false },
+      { id: 'VND005', name: 'Gold Coin Jewels', type: 'Reward Fulfillment', payout: 800000, sla: 76, kyc: 'Pending', expiry: '2026-06-30', alert: false }
+    ];
 
-        const pageHTML = `
-      <div class="grid-cards animate-slide-in">
-        <div class="metric-card">
-          <div class="metric-title">Total Vendor Obligation</div>
-          <div class="metric-value">₹ 1.30 Cr</div>
-          <div class="metric-trend trend-info"><i class="fas fa-handshake"></i> Active Contracts</div>
+    const pageHTML = `
+      <!-- VENDOR SCORECARD -->
+      <div class="panel animate-slide-in" style="margin-bottom: 20px;">
+        <div class="panel-header">
+           <h3 class="panel-title"><i class="fas fa-chart-bar"></i> Vendor Scorecard</h3>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">Critical Alerts / Expiries</div>
-          <div class="metric-value" style="color:var(--danger)">2</div>
-          <div class="metric-trend trend-down"><i class="fas fa-file-signature"></i> Requires immediate review</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Average Vendor SLA</div>
-          <div class="metric-value">89%</div>
-          <div class="metric-trend trend-up"><i class="fas fa-star" style="color:var(--warning)"></i> Based on IC feedback</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Onboarding Pipeline</div>
-          <button class="btn btn-outline" style="margin-top:10px; width:100%"><i class="fas fa-user-plus"></i> Initiate New KYC Setup</button>
+        <div class="table-responsive">
+           <table class="data-table" style="font-size: 0.85rem">
+              <thead>
+                 <tr>
+                    <th>Vendor</th>
+                    <th>Service Type</th>
+                    <th>SLA Compliance</th>
+                    <th>Payment Accuracy</th>
+                    <th>Dispute Frequency</th>
+                    <th>Overall Rating</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 ${vendors.map(v => {
+      const payAccuracy = Math.min(100, v.sla + Math.floor(Math.random() * 8) - 2);
+      const disputes = v.sla < 85 ? Math.floor(Math.random() * 5) + 3 : Math.floor(Math.random() * 3);
+      const overall = Math.round((v.sla + payAccuracy + (100 - disputes * 10)) / 3);
+      const overallColor = overall > 90 ? 'var(--success)' : overall > 80 ? 'var(--warning)' : 'var(--danger)';
+      const stars = overall > 90 ? '★★★★★' : overall > 80 ? '★★★★☆' : overall > 70 ? '★★★☆☆' : '★★☆☆☆';
+
+      return `
+                    <tr>
+                       <td><strong>${v.name}</strong><br><small style="color:var(--text-muted)">${v.id}</small></td>
+                       <td>${v.type}</td>
+                       <td>
+                          <div style="display:flex; align-items:center; gap:8px;">
+                             <div class="progress-bar-container" style="width: 80px; margin:0">
+                                <div class="progress-bar" style="width: ${v.sla}%; background-color: ${v.sla > 90 ? 'var(--success)' : v.sla > 80 ? 'var(--warning)' : 'var(--danger)'}"></div>
+                             </div>
+                             <strong>${v.sla}%</strong>
+                          </div>
+                       </td>
+                       <td>
+                          <div style="display:flex; align-items:center; gap:8px;">
+                             <div class="progress-bar-container" style="width: 80px; margin:0">
+                                <div class="progress-bar" style="width: ${payAccuracy}%; background-color: ${payAccuracy > 95 ? 'var(--success)' : 'var(--warning)'}"></div>
+                             </div>
+                             <strong>${payAccuracy}%</strong>
+                          </div>
+                       </td>
+                       <td>
+                          <span style="font-weight:bold; color:${disputes > 3 ? 'var(--danger)' : 'var(--text-main)'}">${disputes} disputes</span>
+                          ${disputes > 3 ? '<br><small style="color:var(--danger)"><i class="fas fa-exclamation-circle"></i> High</small>' : '<br><small style="color:var(--success)"><i class="fas fa-check-circle"></i> Normal</small>'}
+                       </td>
+                       <td style="text-align:center;">
+                          <span style="color:${overallColor}; font-size:1.1rem;">${stars}</span>
+                          <br><small style="color:var(--text-muted)">${overall}%</small>
+                       </td>
+                    </tr>`;
+    }).join('')}
+              </tbody>
+           </table>
         </div>
       </div>
 
-      <div class="panel animate-slide-in" style="animation-delay: 0.1s">
-        <div class="panel-header">
-          <h3 class="panel-title">Contract Register & Performance Scorecards</h3>
-        </div>
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s;">
         
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Vendor Code & Name</th>
-                <th>Service Type</th>
-                <th>Quarterly Payout Accrual</th>
-                <th>SLA Score</th>
-                <th>KYC Validation</th>
-                <th>Contract Expiry</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+        <!-- COMPLIANCE TRACKER -->
+        <div class="panel">
+           <div class="panel-header" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+              <h3 class="panel-title"><i class="fas fa-shield-alt"></i> Compliance Tracker</h3>
+           </div>
+
+           <h4 style="font-size: 0.9rem; margin-bottom: 10px; color:var(--text-main);"><i class="fas fa-id-badge" style="color:var(--primary)"></i> KYC Validation Status</h4>
+           <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
               ${vendors.map(v => {
-            let kycBadge = 'status-success';
-            let btn = '<button class="action-btn"><i class="fas fa-file-invoice"></i></button>';
-            if (v.kyc === 'Expired') { kycBadge = 'status-danger'; btn = '<button class="action-btn" title="Block Payout" style="color:var(--danger)"><i class="fas fa-ban"></i></button>'; }
-            if (v.kyc === 'Pending') kycBadge = 'status-warning';
-
-            const alertClass = v.alert ? 'style="background-color: var(--danger-bg)"' : '';
-
-            return `
-                <tr ${alertClass}>
-                  <td><strong>${v.name}</strong> <br><small style="color:var(--text-muted)">${v.id}</small></td>
-                  <td>${v.type}</td>
-                  <td>${App.formatCurrency(v.payout)}</td>
-                  <td>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <div class="progress-bar-container" style="width: 60px; margin:0">
-                        <div class="progress-bar" style="width: ${v.sla}%; background-color: ${v.sla > 90 ? 'var(--success)' : 'var(--warning)'}"></div>
-                      </div>
-                      ${v.sla}%
+      let kycColor = 'var(--success)'; let kycIcon = 'fa-check-circle'; let kycBg = '#dcfce7';
+      if (v.kyc === 'Expired') { kycColor = 'var(--danger)'; kycIcon = 'fa-times-circle'; kycBg = '#fee2e2'; }
+      if (v.kyc === 'Pending') { kycColor = 'var(--warning)'; kycIcon = 'fa-clock'; kycBg = '#fef3c7'; }
+      return `
+                 <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; background:${kycBg}; border-radius: 6px; font-size: 0.85rem;">
+                    <div><strong>${v.name}</strong></div>
+                    <div style="display:flex; align-items:center; gap: 6px; color:${kycColor}; font-weight: 600;">
+                       <i class="fas ${kycIcon}"></i> ${v.kyc}
+                       ${v.kyc === 'Expired' ? '<button class="btn btn-sm" style="background:var(--danger); color:white; border:none; margin-left:8px; padding:2px 8px; font-size:0.75rem;" onclick="alert(\'Sending KYC renewal request to ' + v.name + '...\')">Renew</button>' : ''}
                     </div>
-                  </td>
-                  <td><span class="status-badge ${kycBadge}">${v.kyc}</span></td>
-                  <td>
-                    ${v.expiry}
-                    ${v.alert ? '<br><span style="font-size:0.75rem; color:var(--danger); font-weight:bold"><i class="fas fa-stopwatch"></i> Action Req.</span>' : ''}
-                  </td>
-                  <td>${btn}</td>
-                </tr>
-              `}).join('')}
-            </tbody>
-          </table>
+                 </div>`;
+    }).join('')}
+           </div>
+
+           <h4 style="font-size: 0.9rem; margin-bottom: 10px; color:var(--text-main);"><i class="fas fa-file-contract" style="color:var(--accent)"></i> Contract Validity Alerts</h4>
+           <div style="display:flex; flex-direction:column; gap:8px;">
+              ${vendors.map(v => {
+      const expDate = new Date(v.expiry);
+      const daysLeft = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
+      let urgency = 'var(--success)'; let urgLabel = 'Active';
+      if (daysLeft < 0) { urgency = 'var(--danger)'; urgLabel = 'EXPIRED'; }
+      else if (daysLeft < 60) { urgency = 'var(--warning)'; urgLabel = daysLeft + ' days left'; }
+      else { urgLabel = daysLeft + ' days left'; }
+      return `
+                 <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px 12px; border: 1px solid var(--border); border-left: 3px solid ${urgency}; border-radius: 6px; font-size: 0.85rem;">
+                    <div>${v.name} <small style="color:var(--text-muted)">(${v.expiry})</small></div>
+                    <span style="color:${urgency}; font-weight:600; font-size:0.8rem;"><i class="fas ${daysLeft < 0 ? 'fa-exclamation-triangle' : daysLeft < 60 ? 'fa-stopwatch' : 'fa-check'}"></i> ${urgLabel}</span>
+                 </div>`;
+    }).join('')}
+           </div>
         </div>
+
+        <!-- VENDOR PORTAL -->
+        <div class="panel">
+           <div class="panel-header" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+              <h3 class="panel-title"><i class="fas fa-globe"></i> Vendor Portal (Self-Service)</h3>
+           </div>
+
+           <h4 style="font-size: 0.9rem; margin-bottom: 10px; color:var(--text-main);"><i class="fas fa-wallet" style="color:var(--success)"></i> Payout Tracking</h4>
+           <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+              ${vendors.map(v => {
+      const paid = Math.round(v.payout * (0.5 + Math.random() * 0.4));
+      const pending = v.payout - paid;
+      const pctPaid = Math.round((paid / v.payout) * 100);
+      return `
+                 <div style="padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                       <strong>${v.name}</strong>
+                       <span style="color:var(--text-muted); font-size:0.8rem;">${pctPaid}% Disbursed</span>
+                    </div>
+                    <div class="progress-bar-container" style="margin:0; height:8px;">
+                       <div class="progress-bar" style="width: ${pctPaid}%; background: linear-gradient(90deg, var(--success), var(--primary));"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.8rem; color:var(--text-muted);">
+                       <span><i class="fas fa-check" style="color:var(--success)"></i> Paid: ${App.formatCurrency(paid)}</span>
+                       <span><i class="fas fa-clock" style="color:var(--warning)"></i> Pending: ${App.formatCurrency(pending)}</span>
+                    </div>
+                 </div>`;
+    }).join('')}
+           </div>
+
+           <h4 style="font-size: 0.9rem; margin-bottom: 10px; color:var(--text-main);"><i class="fas fa-file-upload" style="color:var(--primary)"></i> Invoice Submission</h4>
+           <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px; background: var(--bg-app);">
+              <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--primary); margin-bottom: 10px; display:block;"></i>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">Drag & drop vendor invoice or click to upload</p>
+              <button class="btn btn-primary btn-sm" onclick="alert('Opening file picker for vendor invoice upload...')"><i class="fas fa-paperclip"></i> Choose File</button>
+           </div>
+           <div style="font-size:0.8rem; color:var(--text-muted); padding: 10px; background: var(--bg-app); border-radius: 6px;">
+              <strong>Recent Submissions:</strong>
+              <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+                 <div style="display:flex; justify-content:space-between;"><span><i class="fas fa-file-pdf" style="color:var(--danger)"></i> INV-VND002-Mar26.pdf</span> <span class="status-badge status-success" style="font-size:0.7rem">Accepted</span></div>
+                 <div style="display:flex; justify-content:space-between;"><span><i class="fas fa-file-pdf" style="color:var(--danger)"></i> INV-VND004-Mar26.pdf</span> <span class="status-badge status-warning" style="font-size:0.7rem">Under Review</span></div>
+                 <div style="display:flex; justify-content:space-between;"><span><i class="fas fa-file-pdf" style="color:var(--danger)"></i> INV-VND001-Feb26.pdf</span> <span class="status-badge status-success" style="font-size:0.7rem">Accepted</span></div>
+              </div>
+           </div>
+        </div>
+
       </div>
     `;
 
-        App.setContent(pageHTML);
-    </script>
+    App.setContent(pageHTML);
+  </script>
 </body>
 
 </html>

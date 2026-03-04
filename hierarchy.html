@@ -2,105 +2,242 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InsureCentive - Hierarchy Management</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsureCentive - Hierarchy Management</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
 
-    <script src="js/mockData.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        App.renderLayout('hierarchy');
-        App.setPageTitle('Hierarchy Interface');
+  <script src="js/mockData.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.renderLayout('hierarchy');
+    App.setPageTitle('Hierarchy Interface');
 
-        const sms = App.getData('ic_platform_sms');
-        const ics = App.getData('ic_platform_ics');
+    const sms = App.getData('ic_platform_sms');
+    const ics = App.getData('ic_platform_ics');
 
-        // Group ICs by SM purely for UI rendering limits
-        const displaySMs = sms.slice(0, 4);
+    // Group ICs by SM purely for UI rendering limits
+    const displaySMs = sms.slice(0, 4);
 
-        const pageHTML = `
-      <div class="grid-2 animate-slide-in">
+    const renderPage = (viewRole, asOnDate) => {
+      // 1. Filter SMs and ICs based on Access Role
+      let displaySMs = sms;
+      let displayICs = ics;
+
+      let topNodeTitle = "Global System";
+
+      if (viewRole === 'Zone Head (Mumbai East)') {
+        displaySMs = sms.filter(sm => sm.zone === 'Mumbai East');
+        displayICs = ics.filter(ic => ic.zone === 'Mumbai East');
+        topNodeTitle = "💼 Zone Head (Mumbai East)";
+      }
+      else if (viewRole === 'Zone Head (Mumbai West)') {
+        displaySMs = sms.filter(sm => sm.zone === 'Mumbai West');
+        displayICs = ics.filter(ic => ic.zone === 'Mumbai West');
+        topNodeTitle = "💼 Zone Head (Mumbai West)";
+      }
+      else if (viewRole === 'Zone Head (All Zones)') {
+        topNodeTitle = "💼 National Sales Director";
+      }
+      else if (viewRole === 'Branch Manager (Mumbai East - Ghatkopar)') {
+        displaySMs = sms.filter(sm => sm.branch_id === 'B09'); // Ghatkopar is B09 in mock
+        displayICs = ics.filter(ic => ic.branch_id === 'B09');
+        topNodeTitle = "🏢 Branch Manager (Ghatkopar)";
+      }
+      else if (viewRole === 'Sales Manager (Direct Team)') {
+        // Pick the first one in Mumbai east for demo
+        const mockSmId = sms.find(sm => sm.zone === 'Mumbai East').id;
+        displaySMs = sms.filter(sm => sm.id === mockSmId);
+        displayICs = ics.filter(ic => ic.sm_id === mockSmId);
+        topNodeTitle = "👨‍💼 SM View (Direct Only)";
+      }
+
+      // 2. Adjust IC values based on As-on-Date
+      let dateMultiplier = 1;
+      let dateColor = "var(--text-main)";
+      if (asOnDate === 'End of Q2 FY26 (Projected)') {
+        dateMultiplier = 1.35; // Projected growth
+        dateColor = "var(--success)";
+      } else if (asOnDate === 'End of Q1 FY26 (Historical)') {
+        dateMultiplier = 0.65; // Past data
+        dateColor = "var(--warning)";
+      }
+
+      // Group branches
+      const branchesInView = [...new Set(displaySMs.map(sm => sm.branch_id))];
+      const branchesData = App.getData('ic_platform_branches').filter(b => branchesInView.includes(b.id));
+
+      const pageHTML = `
+      <!-- ACCESS GOVERNANCE TOP BAR -->
+      <div class="panel animate-slide-in" style="margin-bottom: 20px; padding: 15px 24px;">
+         <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+               <h3 style="font-size: 1.1rem; margin-bottom: 5px;"><i class="fas fa-shield-alt" style="color:var(--primary)"></i> Access Governance & Role View</h3>
+               <div style="font-size: 0.85rem; color: var(--text-muted)">Currently viewing as: <strong>${viewRole}</strong>.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+               <select class="form-control" style="width: 300px; font-size: 0.85rem;" onchange="App.handleRoleChange(this.value)">
+                  <option ${viewRole === 'Zone Head (All Zones)' ? 'selected' : ''}>Zone Head (All Zones)</option>
+                  <option ${viewRole === 'Zone Head (Mumbai East)' ? 'selected' : ''}>Zone Head (Mumbai East)</option>
+                  <option ${viewRole === 'Zone Head (Mumbai West)' ? 'selected' : ''}>Zone Head (Mumbai West)</option>
+                  <option ${viewRole === 'Branch Manager (Mumbai East - Ghatkopar)' ? 'selected' : ''}>Branch Manager (Mumbai East - Ghatkopar)</option>
+                  <option ${viewRole === 'Sales Manager (Direct Team)' ? 'selected' : ''}>Sales Manager (Direct Team)</option>
+               </select>
+            </div>
+         </div>
+      </div>
+
+      <div class="grid-2 animate-slide-in" style="animation-delay: 0.1s">
         
         <!-- Org Chart Tree -->
         <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-sitemap"></i> Expandable Org Chart (West Zone)</h3>
-            <button class="btn btn-outline btn-sm"><i class="fas fa-upload"></i> Bulk Upload Simulation</button>
+          <div class="panel-header" style="flex-direction: column; align-items: flex-start; gap: 10px;">
+            <div style="display:flex; justify-content:space-between; width:100%">
+               <h3 class="panel-title"><i class="fas fa-sitemap"></i> Dynamic Hierarchy Modeling</h3>
+               <button class="btn btn-outline btn-sm" onclick="alert('Initiating Bulk Hierarchy Edit Module...')"><i class="fas fa-upload"></i> Bulk Edit</button>
+            </div>
+            <!-- TIME BOUND SELECTOR -->
+            <div style="display:flex; gap: 10px; width: 100%; align-items: center; background: var(--bg-app); padding: 8px; border-radius: 6px;">
+               <i class="far fa-calendar-alt" style="color:var(--text-muted)"></i>
+               <span style="font-size:0.85rem; font-weight:500">As-on-Date View:</span>
+               <select class="form-control" style="width:auto; padding: 4px 8px; font-size: 0.8rem;" onchange="App.handleDateChange(this.value)">
+                  <option ${asOnDate.includes('Current') ? 'selected' : ''}>Current (Real-time)</option>
+                  <option ${asOnDate.includes('Projected') ? 'selected' : ''}>End of Q2 FY26 (Projected)</option>
+                  <option ${asOnDate.includes('Historical') ? 'selected' : ''}>End of Q1 FY26 (Historical)</option>
+               </select>
+            </div>
           </div>
-          <div style="font-family: monospace; font-size: 0.9rem; line-height: 1.8;">
-            <div style="font-weight: bold; color: var(--primary)">💼 Ashok Desai (Zone Head - West)</div>
-            <div style="margin-left: 20px;">
-              <div style="font-weight: bold; color: var(--accent);">🏢 Mumbai South (Branch)</div>
-              ${displaySMs.map(sm => {
-            const myIcs = ics.filter(ic => ic.sm_id === sm.id).slice(0, 2);
-            return `
-                  <div style="margin-left: 20px; border-left: 1px dashed var(--border); padding-left: 10px;">
-                    <div style="cursor: pointer;">👨‍💼 ${sm.name} [${sm.id}] - <span style="color:var(--text-muted)">SM Level</span></div>
-                    <div style="margin-left: 20px; border-left: 1px dashed var(--border); padding-left: 10px; color: var(--text-muted);">
-                      ${myIcs.map(ic => `<div>👤 ${ic.name} [${ic.id}] - IC (Ach: ${App.formatCurrency(ic.nb_premium)})</div>`).join('')}
-                      <div><i class="fas fa-plus-circle" style="color:var(--primary); cursor:pointer;"></i> Show More...</div>
+          
+          <div style="font-family: monospace; font-size: 0.9rem; line-height: 1.8; margin-top: 15px; max-height: 500px; overflow-y: auto;">
+            <div style="font-weight: bold; color: var(--primary)">${topNodeTitle}</div>
+            
+            ${branchesData.map(branch => {
+        const mySms = displaySMs.filter(sm => sm.branch_id === branch.id);
+        if (mySms.length === 0) return '';
+
+        return `
+              <div style="margin-left: 20px;">
+                <div style="font-weight: bold; color: var(--accent);">🏢 ${branch.name} (Zone: ${branch.zone})</div>
+                
+                ${mySms.map(sm => {
+          const allMyIcs = displayICs.filter(ic => ic.sm_id === sm.id);
+          const showIcs = allMyIcs.slice(0, 2);
+          const hiddenIcs = allMyIcs.slice(2);
+
+          return `
+                    <div style="margin-left: 20px; border-left: 1px dashed var(--border); padding-left: 10px; margin-bottom: 8px;">
+                      <div style="cursor: pointer; font-weight:500;">👨‍💼 ${sm.name} [${sm.id}] - <span style="color:var(--text-muted); font-weight:normal;">Level: L1 SM</span></div>
+                      
+                      <div style="margin-left: 20px; border-left: 1px dashed var(--border); padding-left: 10px; color: var(--text-muted);">
+                        ${showIcs.length === 0 ? '<div style="color:var(--danger)">No ICs mapped</div>' : ''}
+                        ${showIcs.map(ic => `<div>👤 ${ic.name} [${ic.id}] - Ach: <span style="color:${dateColor}">${App.formatCurrency(ic.nb_premium * dateMultiplier)}</span></div>`).join('')}
+                        
+                        ${hiddenIcs.length > 0 ? `
+                          <div id="hidden-${sm.id}" style="display:none;">
+                            ${hiddenIcs.map(ic => `<div>👤 ${ic.name} [${ic.id}] - Ach: <span style="color:${dateColor}">${App.formatCurrency(ic.nb_premium * dateMultiplier)}</span></div>`).join('')}
+                          </div>
+                          <div onclick="document.getElementById('hidden-${sm.id}').style.display='block'; this.style.display='none'" style="cursor:pointer; color:var(--primary); font-size:0.8rem; margin-top:4px;">
+                             <i class="fas fa-plus-circle"></i> Show ${hiddenIcs.length} More...
+                          </div>
+                        ` : ''}
+                      </div>
+
                     </div>
-                  </div>
-                `;
+                  `;
         }).join('')}
-            </div>
+              </div>
+              `;
+      }).join('')}
+
           </div>
         </div>
 
-        <!-- Transfer / Impact Simulation -->
+        <!-- Transfer / Impact Analysis -->
         <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-exchange-alt"></i> IC Transfer Simulation</h3>
+          <div class="panel-header" style="margin-bottom: 10px;">
+            <h3 class="panel-title"><i class="fas fa-exchange-alt"></i> Impact Analysis</h3>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
+             Simulate the financial and structural impact of moving agents within your permitted hierarchy view.
           </div>
           
           <div class="form-group">
-            <label class="form-label">Select Source IC</label>
-            <select class="form-control" id="sim-ic">
-              ${ics.slice(0, 5).map(ic => `<option value="${ic.id}">${ic.name} (${ic.id}) - Current SM: ${ic.sm_id}</option>`).join('')}
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Destination SM</label>
-            <select class="form-control" id="sim-sm">
-              <option>SM005 - Vikas Reddy (Delhi Base)</option>
-              <option>SM012 - Sneha Iyer (Mumbai South)</option>
-            </select>
-          </div>
-          
-          <button class="btn btn-primary" onclick="showImpact()" style="width: 100%; margin-bottom: 20px;">Simulate Impact on SM Overrides</button>
-
-          <div id="impact-panel" style="display:none;" class="alert-box alert-warning">
-            <i class="fas fa-project-diagram alert-icon"></i>
-            <div>
-              <strong>If Hierarchy Changes → Payout Impact:</strong> 
-              Transferring this IC will shift <span style="color:var(--danger)">₹4,500</span> in L1 SM Overrides from the Source SM to the Destination SM for the upcoming payout cycle. 
-              Destination SM also unlocks <i>"Super Team"</i> power reward criteria.
+            <label class="form-label">Scenario Type</label>
+            <div style="display:flex; gap: 10px;">
+               <label><input type="radio" name="scen" checked> IC Lateral Transfer</label>
+               <label><input type="radio" name="scen"> IC -> SM Promotion</label>
             </div>
           </div>
 
-          <!-- Promotion Simulation -->
-          <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
-          <div class="panel-header">
-            <h3 class="panel-title"><i class="fas fa-level-up-alt"></i> IC to SM Promotion Simulation</h3>
+          <div class="grid-2" style="margin-bottom: 10px; gap: 10px;">
+             <div class="form-group" style="margin-bottom:0">
+               <label class="form-label">Subject Agent</label>
+               <select class="form-control" id="sim-ic">
+                 ${displayICs.length === 0 ? '<option>No agents</option>' : ''}
+                 ${displayICs.map(ic => `<option value="${ic.id}">${ic.name} (${ic.id})</option>`).join('')}
+               </select>
+             </div>
+             <div class="form-group" style="margin-bottom:0">
+               <label class="form-label">Target Destination</label>
+               <select class="form-control" id="sim-sm">
+                 ${displaySMs.length === 0 ? '<option>No SMs</option>' : ''}
+                 ${displaySMs.map(sm => `<option value="${sm.id}">${sm.id} - ${sm.name}</option>`).join('')}
+               </select>
+             </div>
           </div>
-          <button class="btn btn-outline" style="width: 100%;" onclick="alert('L2 Override mappings will be recalibrated.')">Simulate Promotion</button>
+          
+          <button class="btn btn-primary" onclick="App.showImpact()" style="width: 100%; margin-bottom: 20px; margin-top: 10px;"><i class="fas fa-calculator"></i> Run Impact Simulation</button>
+
+          <div id="impact-panel" style="display:none; flex-direction: column; gap: 10px;">
+            <div class="alert-box alert-warning" style="margin-bottom:0">
+               <i class="fas fa-project-diagram alert-icon"></i>
+               <div style="font-size: 0.85rem;">
+               <strong>Incentive Shift Detected:</strong> 
+               Transferring this IC will shift <span style="color:var(--danger)" id="impact-val">₹4,500</span> in L1 SM Overrides from the Source SM to the Destination SM for the upcoming payout cycle. 
+               </div>
+            </div>
+            <div class="alert-box alert-info" style="margin-bottom:0">
+               <i class="fas fa-users-cog alert-icon"></i>
+               <div style="font-size: 0.85rem;">
+               <strong>Cross-Mapping Performance Visibility:</strong> 
+               Destination SM will now gain visibility into this IC's historical pipeline, boosting the SM's projected Q3 Team target achievement by <span style="color:var(--success)">+4.2%</span>.
+               </div>
+            </div>
+          </div>
         </div>
-
       </div>
-    `;
+      `;
 
-        App.setContent(pageHTML);
+      App.setContent(pageHTML);
+    };
 
-        window.showImpact = function () {
-            document.getElementById('impact-panel').style.display = 'flex';
-        };
-    </script>
+    // Global state handlers attached to App for access from stringified HTML
+    App.currentRole = 'Zone Head (All Zones)';
+    App.currentDate = 'Current (Real-time)';
+
+    App.handleRoleChange = function (role) {
+      App.currentRole = role;
+      renderPage(App.currentRole, App.currentDate);
+    };
+
+    App.handleDateChange = function (date) {
+      App.currentDate = date;
+      renderPage(App.currentRole, App.currentDate);
+    };
+
+    App.showImpact = function () {
+      const shiftAmt = Math.floor(Math.random() * 50000) + 10000;
+      document.getElementById('impact-val').innerText = App.formatCurrency(shiftAmt);
+      document.getElementById('impact-panel').style.display = 'flex';
+    };
+
+    // Boot
+    renderPage(App.currentRole, App.currentDate);
+  </script>
 </body>
 
 </html>
