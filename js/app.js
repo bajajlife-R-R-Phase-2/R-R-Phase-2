@@ -36,7 +36,6 @@ const App = {
           <a href="notifications.html" class="nav-item ${activePageId === 'notifications' ? 'active' : ''}"><i class="fas fa-bell"></i> Notifications</a>
           <a href="hierarchy.html" class="nav-item ${activePageId === 'hierarchy' ? 'active' : ''}"><i class="fas fa-sitemap"></i> Hierarchy</a>
           <a href="invoicing.html" class="nav-item ${activePageId === 'invoicing' ? 'active' : ''}"><i class="fas fa-file-invoice-dollar"></i> Invoicing</a>
-          <a href="vendor.html" class="nav-item ${activePageId === 'vendor' ? 'active' : ''}"><i class="fas fa-handshake"></i> Vendor Mgmt</a>
           <a href="gamification.html" class="nav-item ${activePageId === 'gamification' ? 'active' : ''}"><i class="fas fa-trophy"></i> Gamification</a>
         </nav>
         <div class="sidebar-footer">
