@@ -380,19 +380,67 @@
     };
 
     window.openExplainModal = (tktId) => {
+      const ticket = queries.find(q => q.id === tktId);
+      if (!ticket) return;
+
+      let traceOutput = '';
+
+      switch (ticket.issue_type) {
+        case 'Payout Mismatch':
+          traceOutput = `
+            <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
+              <li><strong>Input:</strong> Total NB FYP = ₹ 18,40,000</li>
+              <li><strong>Condition 1 (Slab Matrix):</strong> FYP falls in <em>Slab 2 (15L - 25L)</em> -> Base Rate 15%</li>
+              <li><strong>Condition 2 (Persistency Gate):</strong> 13M Persistency is <strong>71%</strong></li>
+              <li style="color: var(--danger)"><strong>Gate Triggered:</strong> Persistency < 75% threshold.</li>
+              <li><strong>Penalty Applied:</strong> 50% reduction in base commission rate.</li>
+              <li><strong>Output:</strong> Effective Rate = 7.5%. Final Payout = ₹ 1,38,000</li>
+            </ul>`;
+          break;
+        case 'Policy Not Reflected':
+          traceOutput = `
+            <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
+              <li><strong>Input:</strong> Policy <em>#POL-98234</em> issued on T-1</li>
+              <li><strong>Condition 1 (Clearance):</strong> Checking initial premium payment status.</li>
+              <li style="color: var(--danger)"><strong>Gate Triggered:</strong> Payment pending reconciliation from Gateway.</li>
+              <li><strong>Rule Applied:</strong> Policy placed in Suspense queue until fund realization.</li>
+              <li><strong>Output:</strong> Policy excluded from current month's NB calculation.</li>
+            </ul>`;
+          break;
+        case 'Club Status Incorrect':
+          traceOutput = `
+            <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
+              <li><strong>Input:</strong> Agent target achievement is <strong>105%</strong></li>
+              <li><strong>Condition 1 (Club Rules):</strong> Club qualifier requires 100% target achievement.</li>
+              <li><strong>Condition 2 (Team Target):</strong> Requires agent to have 2 active sub-agents.</li>
+              <li style="color: var(--danger)"><strong>Gate Triggered:</strong> Sub-agent <em>#IC0098</em> became inactive last month. (Active count = 1)</li>
+              <li><strong>Output:</strong> Club status downgraded from Silver to Bronze.</li>
+            </ul>`;
+          break;
+        case 'Clawback Dispute':
+          traceOutput = `
+            <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
+              <li><strong>Input:</strong> Policy <em>#POL-44512</em> canceled during free-look period.</li>
+              <li><strong>Condition 1 (Commission Reversal):</strong> Free-look cancellation mandates 100% NB reversal.</li>
+              <li style="color: var(--warning)"><strong>Rule Applied:</strong> Clawback amounting to ₹ 12,500 calculated.</li>
+              <li><strong>Output:</strong> ₹ 12,500 deduction staged for current month's payout ledger.</li>
+            </ul>`;
+          break;
+        default:
+          traceOutput = `
+            <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
+              <li><strong>Input:</strong> Agent data extracted from Core System.</li>
+              <li><strong>Condition 1:</strong> Running eligibility check for Scheme: <em>${ticket.scheme_tagged || 'N/A'}</em></li>
+              <li style="color: var(--info)"><strong>System Check:</strong> Base logic successfully applied without flags.</li>
+              <li><strong>Output:</strong> Payout correctly determined based on standard matrix.</li>
+            </ul>`;
+      }
+
       const content = `
         <div style="background: var(--bg-app); padding: 15px; border-radius: var(--radius-sm); border-left: 4px solid var(--primary);">
           <h4 style="margin-bottom: 10px">Rule Execution Trace Simulator</h4>
           <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Simulating backend logic applied to agent for Ticket ${tktId}:</p>
-          
-          <ul style="font-size: 0.85rem; line-height: 1.8; color: var(--text-main); padding-left: 20px;">
-            <li><strong>Input:</strong> Total NB FYP = ₹ 18,40,000</li>
-            <li><strong>Condition 1 (Slab Matrix):</strong> FYP falls in <em>Slab 2 (15L - 25L)</em> -> Base Rate 15%</li>
-            <li><strong>Condition 2 (Persistency Gate):</strong> 13M Persistency is <strong>71%</strong></li>
-            <li style="color: var(--danger)"><strong>Gate Triggered:</strong> Persistency < 75% threshold.</li>
-            <li><strong>Penalty Applied:</strong> 50% reduction in base commission rate.</li>
-            <li><strong>Output:</strong> Effective Rate = 7.5%. Final Payout = ₹ 1,38,000</li>
-          </ul>
+          ${traceOutput}
         </div>
         <div style="margin-top:20px;">
           <textarea class="form-control" rows="2" placeholder="Send explanation to agent..."></textarea>
